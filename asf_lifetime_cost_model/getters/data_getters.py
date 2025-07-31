@@ -1,0 +1,394 @@
+"""Data getters for inputs into lifetime cost calculations."""
+
+from typing import Optional, Tuple
+from datetime import datetime
+
+import asf_levies_model.getters.load_data as levies_data_getters
+import asf_levies_model.levies as levies
+import asf_levies_model.tariffs as tariffs
+import pandas as pd
+
+from asf_levies_model.tariffs import Tariff
+from asf_levies_model.levies import LevyCollection
+from asf_levies_model.summary import create_scenario_weights_dict
+
+from asf_lifetime_cost_model.getters.getter_utils import (
+    _read_s3_csv_to_dataframe,
+    _read_excel_to_dataframe,
+)
+
+
+def get_ashp_installation_costs() -> pd.DataFrame:
+    """
+    Get dataframe of air-source heat pump installations costs from S3.
+
+    Returns:
+        pd.DataFrame: Dataframe of air-source heat pump installation \
+            costs for different property archetypes.
+    """
+    return _read_s3_csv_to_dataframe(
+        bucket_name="asf-lifetime-cost-model",
+        s3_key="inputs/ashp_installation_costs.csv",
+    )
+
+
+def get_property_heat_demand() -> pd.DataFrame:
+    """
+    Get dataframe of average heat demand data from S3.
+
+    Returns:
+        pd.DataFrame: Dataframe of average heat demand for \
+            different property archetypes.
+    """
+    return _read_s3_csv_to_dataframe(
+        bucket_name="asf-lifetime-cost-model", s3_key="inputs/property_heat_demand.csv"
+    )
+
+
+def get_desnz_wholesale_price_projections(
+    projection_scenario_names: list[str],
+) -> pd.DataFrame:
+    """
+    Get dataframe containing DESNZ wholesale price projections for natural gas \
+        and electricity from 2001 to 2050 under different scenarios.
+
+    Possible scenarios include:
+    - "Reference"
+    - "FFP_Low" (reference assumptions with lower fossil fuel prices)
+    - "FFP_High" (reference assumptions with higher fossil fuel prices)
+    - "GDP_Low" (reference assumptions with lower economic growth)
+    - "GDP_High" (reference assumptions with higher economic growth)
+    - "Existing" (reference assumptions, but excluding planned policies)
+
+    Args:
+        projection_scenario_names (list[str]): List of scenario names of interest, \
+            valid scenario names as listed above correspond to the original Excel tabs.
+
+    Returns:
+        pd.DataFrame: Dataframe containing time-series data for price projections \
+            for natural gas and electricity.
+    """
+
+    # Read all sheets in Excel workbook into a dictionary from website
+    all_sheets = _read_excel_to_dataframe(
+        "https://assets.publishing.service.gov.uk/media/6751eae76da7a3435fecbd8e/Annex_M_assumptions_growth_price.ods"
+    )
+
+    # Extract tables for each projection scenario specified
+    projection_scenarios = {}
+    for scenario in projection_scenario_names:
+        df = all_sheets.get(scenario)
+        df.columns = df.iloc[1]
+        df = df[
+            (df["fuel"] == "Electricity (volume weighted)")
+            | (df["fuel"] == "Natural gas")
+        ].reset_index(drop=True)
+        df = df.drop(["coverage", "note"], axis=1)
+        df["projection scenario"] = scenario
+        projection_scenarios[scenario] = df
+
+    # Combine individual scenario tables into one dataframe
+    combined_projection_scenarios = pd.concat(
+        projection_scenarios.values(), ignore_index=True
+    )
+
+    return combined_projection_scenarios
+
+
+def get_tariffs(payment_method: str, price_cap_period: str) -> Tuple[Tariff, Tariff]:
+    """
+    Create gas and electricity Tariff objects from Ofgem price cap data.
+
+    Args:
+        payment_method (str): Payment method of interest, valid arguments are: \
+            Other Payment Method, PPM, Standard Credit.
+        price_cap_period (str): Date of interest in YYYY-MM-DD format. \
+            "LATEST" is also valid to get the most recently available price cap.
+
+    Raises:
+        KeyError: If provided payment method type is not one of the valid types.
+
+    Returns:
+        Tuple[Tariff, Tariff]: Gas Tariff and electricity Tariff objects corresponding to \
+            payment method and price cap period provided.
+    """
+
+    # Get Annex 9
+    fileobject = levies_data_getters.download_annex_9(as_fileobject=True)
+
+    if payment_method == "Other Payment Method":
+        gas_tariff = tariffs.GasOtherPayment.from_dataframe(
+            levies_data_getters.process_tariff_gas_other_payment_nil(fileobject),
+            levies_data_getters.process_tariff_gas_other_payment_typical(fileobject),
+            price_cap=price_cap_period,
+        )
+        electricity_tariff = tariffs.ElectricityOtherPayment.from_dataframe(
+            levies_data_getters.process_tariff_elec_other_payment_nil(fileobject),
+            levies_data_getters.process_tariff_elec_other_payment_typical(fileobject),
+            price_cap=price_cap_period,
+        )
+    elif payment_method == "PPM":
+        gas_tariff = tariffs.GasPPM.from_dataframe(
+            levies_data_getters.process_tariff_gas_ppm_nil(fileobject),
+            levies_data_getters.process_tariff_gas_ppm_typical(fileobject),
+            price_cap=price_cap_period,
+        )
+        electricity_tariff = tariffs.ElectricityPPM.from_dataframe(
+            levies_data_getters.process_tariff_elec_ppm_nil(fileobject),
+            levies_data_getters.process_tariff_elec_ppm_typical(fileobject),
+            price_cap=price_cap_period,
+        )
+    elif payment_method == "Standard Credit":
+        gas_tariff = tariffs.GasStandardCredit.from_dataframe(
+            levies_data_getters.process_tariff_gas_standard_credit_nil(fileobject),
+            levies_data_getters.process_tariff_gas_standard_credit_typical(fileobject),
+            price_cap=price_cap_period,
+        )
+        electricity_tariff = tariffs.ElectricityStandardCredit.from_dataframe(
+            levies_data_getters.process_tariff_elec_standard_credit_nil(fileobject),
+            levies_data_getters.process_tariff_elec_standard_credit_typical(fileobject),
+            price_cap=price_cap_period,
+        )
+
+    else:
+        raise KeyError(
+            "Please provide a valid payment method (Other Payment Method, PPM or Standard Credit.)"
+        )
+
+    fileobject.close()
+
+    return gas_tariff, electricity_tariff
+
+
+def get_current_energy_price_cap_tariffs(
+    payment_method: str = "Other Payment Method",
+) -> Tuple[Tariff, Tariff]:
+    """
+    Create gas and electricity Tariff objects from Ofgem price cap data.
+
+    Args:
+        payment_method (str, optional): Payment method of interest, \
+            valid arguments are: Other Payment Method, PPM, Standard Credit. Defaults to "Other Payment Method".
+
+    Returns:
+        Tuple[Tariff, Tariff]: Gas Tariff and electricity Tariff objects \
+            corresponding to payment method for current price cap.
+    """
+    current_price_cap_period = datetime.now().strftime("%Y-%m-%d")
+
+    gas_tariff, electricity_tariff = get_tariffs(
+        payment_method=payment_method, price_cap_period=current_price_cap_period
+    )
+
+    return gas_tariff, electricity_tariff
+
+
+def get_levies(price_cap_period: str) -> LevyCollection:
+    """
+    Create LevyCollection object containing Levy objects representing policy costs \
+        for the price cap period provided.
+
+    Args:
+        price_cap_period (str): Date of interest in YYYY-MM-DD format.\
+            "LATEST" is also valid to get the most recently available price cap.
+
+    Returns:
+        LevyCollection: LevyCollection object containing all Levy objects, \
+            each representing a levy present in the policy costs component of the price cap period provided.
+    """
+
+    # Denominator values from DESNZ subnational consumption domestic data, 2023
+    supply_elec = 96_517_461
+    supply_gas = 266_505_188
+    customers_gas = 24_605_467
+    customers_elec = 29_239_936
+
+    denominator_values = {
+        "supply_elec": supply_elec,
+        "supply_gas": supply_gas,
+        "customers_gas": customers_gas,
+        "customers_elec": customers_elec,
+    }
+
+    # Scaling factor for estimating domestic share of FIT revenue
+    total_supply_elec = (
+        249_044_438  # DESNZ GB total electricity consumption - all meters (2023)
+    )
+    exempt_eii_supply = (
+        10_529_633  # Apr-Jun2025 period, Annex 4, New FIT methodology tab
+    )
+    fit_scaling_factor = supply_elec / (total_supply_elec - exempt_eii_supply)
+
+    # Scaling factor for estimating domestic share of NCC revenue
+    ncc_eligible_supply = (
+        119_380_310.7  # Mar-Jun2025 period, Annex 4, NCC methodology tab
+    )
+    ncc_scaling_factor = supply_elec / ncc_eligible_supply
+
+    # Instantiate LevyCollection
+    fileobject = levies_data_getters.download_annex_4(as_fileobject=True)
+    list_levies = [
+        levies.RO.from_dataframe(
+            levies_data_getters.process_data_RO(fileobject),
+            denominator=supply_elec,
+            price_cap=price_cap_period,
+        ),
+        levies.AAHEDC.from_dataframe(
+            levies_data_getters.process_data_AAHEDC(fileobject),
+            denominator=supply_elec,
+            price_cap=price_cap_period,
+        ),
+        levies.GGL.from_dataframe(
+            levies_data_getters.process_data_GGL(fileobject),
+            denominator=customers_gas,
+            price_cap=price_cap_period,
+        ),
+        levies.WHD.from_dataframe(
+            levies_data_getters.process_data_WHD(fileobject),
+            customers_gas=customers_gas,
+            customers_elec=customers_elec,
+            price_cap=price_cap_period,
+        ),
+        levies.ECO4.from_dataframe(
+            levies_data_getters.process_data_ECO(fileobject), price_cap=price_cap_period
+        ),  # Split ECO
+        levies.GBIS.from_dataframe(
+            levies_data_getters.process_data_ECO(fileobject), price_cap=price_cap_period
+        ),  # Split ECO
+        levies.FIT.from_dataframe(
+            levies_data_getters.process_data_FIT(fileobject),
+            scaling_factor=fit_scaling_factor,
+            price_cap=price_cap_period,
+        ),
+        levies.NCC.from_dataframe(
+            levies_data_getters.process_data_NCC(fileobject),
+            scaling_factor=ncc_scaling_factor,
+            price_cap=price_cap_period,
+        ),
+    ]
+    fileobject.close()
+
+    levy_collection = levies.LevyCollection(
+        "Policy Costs", "pc", list_levies, denominator_values
+    )
+
+    return levy_collection
+
+
+def get_rebalanced_levies(
+    scenario_name: str, price_cap_period: str = "LATEST"
+) -> LevyCollection:
+    """
+    Create a LevyCollection containing Levy objects that have been rebalanced according to the scenario provided.
+
+    Args:
+        scenario_name (str): Rebalancing scenario, valid arguments are "Remove all", "Rebalance RO and FiT to gas",\
+            "Remove from electricity", "Rebalance electricity unit cost levies to gas", "Rebalance all to gas".
+        price_cap_period (str, optional): Date of interest in YYYY-MM-DD format. \
+            "LATEST" is also valid to get the most recently available price cap.. Defaults to "LATEST".
+
+    Raises:
+        KeyError: If unrecognised scenario is provided.
+
+    Returns:
+        LevyCollection: LevyCollection object containing rebalanced Levy objects, \
+            each representing a levy present in the policy costs component of the price cap period provided.
+    """
+
+    """
+    Rebalance levies according to supplied denominators (consumption and customer charging base). \
+        Note: This is used for internal consistency in rebalancing as different charging base numbers are \
+            used across different levies to determine levy rates.
+    """
+    levy_collection_for_rebalancing = get_levies(
+        price_cap_period=price_cap_period
+    ).rebalance_to_denominators()
+
+    rebalancing_weights = create_scenario_weights_dict(levy_collection_for_rebalancing)
+
+    # Scenario: Remove all levies
+    if scenario_name == "Remove all":
+        for levy in levy_collection_for_rebalancing:
+            rebalancing_weights[levy.short_name] = {
+                "new_electricity_weight": 0,
+                "new_gas_weight": 0,
+                "new_tax_weight": 1,
+                "new_variable_weight_elec": 0,
+                "new_fixed_weight_elec": 0,
+                "new_variable_weight_gas": 0,
+                "new_fixed_weight_gas": 0,
+            }
+
+    # Scenario: Rebalance RO and FiT to gas (partial rebalancing)
+    elif scenario_name == "Rebalance RO and FiT to gas":
+        for levy in levy_collection_for_rebalancing[["ro", "fit"]]:
+            rebalancing_weights[levy.short_name] = {
+                "new_electricity_weight": 0,
+                "new_gas_weight": 1,
+                "new_tax_weight": 0,
+                "new_variable_weight_elec": 0,
+                "new_fixed_weight_elec": 0,
+                "new_variable_weight_gas": levy.electricity_variable_weight,
+                "new_fixed_weight_gas": levy.electricity_fixed_weight,
+            }
+
+    # Scenario: Remove all levies from electricity
+    elif scenario_name == "Remove from electricity":
+        for levy in [
+            levy
+            for levy in levy_collection_for_rebalancing
+            if levy.electricity_weight > 0
+        ]:
+            rebalancing_weights[levy.short_name] = {
+                "new_electricity_weight": 0,
+                "new_gas_weight": levy.gas_weight,
+                "new_tax_weight": levy.electricity_weight,
+                "new_variable_weight_elec": 0,
+                "new_fixed_weight_elec": 0,
+                "new_variable_weight_gas": levy.gas_variable_weight,
+                "new_fixed_weight_gas": levy.gas_fixed_weight,
+            }
+
+    # Scenario: Rebalance electricity unit cost levies to gas
+    elif scenario_name == "Rebalance electricity unit cost levies to gas":
+        for levy in [
+            levy
+            for levy in levy_collection_for_rebalancing
+            if levy.electricity_variable_weight > 0
+        ]:
+            rebalancing_weights[levy.short_name] = {
+                "new_electricity_weight": 0,
+                "new_gas_weight": 1,
+                "new_tax_weight": 0,
+                "new_variable_weight_elec": 0,
+                "new_fixed_weight_elec": 0,
+                "new_variable_weight_gas": 1,  # assumes no hybrid of unit cost/standing charge
+                "new_fixed_weight_gas": 0,  # assumes no hybrid of unit cost/standing charge
+            }
+
+    # Scenario: Rebalance all levies to gas
+    elif scenario_name == "Rebalance all to gas":
+        for levy in [
+            levy
+            for levy in levy_collection_for_rebalancing
+            if levy.electricity_weight > 0
+        ]:
+            rebalancing_weights[levy.short_name] = {
+                "new_electricity_weight": 0,
+                "new_gas_weight": 1,
+                "new_tax_weight": 0,
+                "new_variable_weight_elec": 0,
+                "new_fixed_weight_elec": 0,
+                "new_variable_weight_gas": levy.electricity_variable_weight,
+                "new_fixed_weight_gas": levy.electricity_fixed_weight,
+            }
+
+    else:
+        raise KeyError("Unrecognised scenario name.")
+
+    # Apply the rebalancing weights to the LevyCollection
+    rebalanced_levy_collection = levy_collection_for_rebalancing.rebalance_levies(
+        rebalancing_weights, scenario_name=scenario_name, inplace=False
+    )
+
+    return rebalanced_levy_collection
