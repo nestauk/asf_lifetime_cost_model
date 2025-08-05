@@ -1,5 +1,7 @@
+"""Helper functions to read CSVs from S3 and Excel files from target URLs or buckets."""
+
 import io
-from typing import Optional, Tuple
+from typing import Optional
 
 import boto3
 import pandas as pd
