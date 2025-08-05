@@ -52,8 +52,7 @@ def get_desnz_wholesale_price_projections(
     projection_scenario_names: list[str],
 ) -> pd.DataFrame:
     """
-    Get dataframe containing DESNZ wholesale price projections for natural gas \
-        and electricity from 2001 to 2050 under different scenarios.
+    Get dataframe containing DESNZ wholesale price projections for natural gas and electricity from 2001 to 2050 under different scenarios.
 
     Possible scenarios include:
     - "Reference"
@@ -64,12 +63,10 @@ def get_desnz_wholesale_price_projections(
     - "Existing" (reference assumptions, but excluding planned policies)
 
     Args:
-        projection_scenario_names (list[str]): List of scenario names of interest, \
-            valid scenario names as listed above correspond to the original Excel tabs.
+        projection_scenario_names (list[str]): List of scenario names of interest, valid scenario names as listed above correspond to the original Excel tabs.
 
     Returns:
-        pd.DataFrame: Dataframe containing time-series data for price projections \
-            for natural gas and electricity.
+        pd.DataFrame: Dataframe containing time-series data for price projections for natural gas and electricity.
     """
 
     # Read all sheets in Excel workbook into a dictionary from website
