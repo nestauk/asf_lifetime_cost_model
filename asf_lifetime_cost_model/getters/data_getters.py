@@ -1,6 +1,11 @@
-"""Data getters for inputs into lifetime cost calculations."""
+"""Data getters for inputs into lifetime cost calculations including:
+- air source heat pump installation costs
+- annual heat demand for property archetype
+- DESNZ gas and electricity wholesale price projections (2023-2050)
+- Ofgem energy price cap
+- policy costs after levy rebalancing"""
 
-from typing import Optional, Tuple
+from typing import Tuple
 from datetime import datetime
 
 import asf_levies_model.getters.load_data as levies_data_getters
@@ -23,8 +28,7 @@ def get_ashp_installation_costs() -> pd.DataFrame:
     Get dataframe of air-source heat pump installations costs from S3.
 
     Returns:
-        pd.DataFrame: Dataframe of air-source heat pump installation \
-            costs for different property archetypes.
+        pd.DataFrame: Dataframe of air-source heat pump installation costs for each decile in different property archetypes.
     """
     return _read_s3_csv_to_dataframe(
         bucket_name="asf-lifetime-cost-model",
@@ -37,8 +41,7 @@ def get_property_heat_demand() -> pd.DataFrame:
     Get dataframe of average heat demand data from S3.
 
     Returns:
-        pd.DataFrame: Dataframe of average heat demand for \
-            different property archetypes.
+        pd.DataFrame: Dataframe of average heat demand for each decile in different property archetypes. Deciles are based on ashp installation costs.
     """
     return _read_s3_csv_to_dataframe(
         bucket_name="asf-lifetime-cost-model", s3_key="inputs/property_heat_demand.csv"
@@ -97,23 +100,24 @@ def get_desnz_wholesale_price_projections(
 
 def get_tariffs(payment_method: str, price_cap_period: str) -> Tuple[Tariff, Tariff]:
     """
-    Create gas and electricity Tariff objects from Ofgem price cap data.
+    Create gas and electricity Tariff objects from Ofgem price cap data (Annex 9 file).
+    A Tariff object is a representation of the rates that are charged against energy consumption.
+    Attributes include fuel type and price cap period interval, and also hold values of each
+    cost component that contributes to the total cost of energy as a standing charge and as a unit cost.
+    See full documentation at: https://github.com/nestauk/asf_levies_model/blob/dev/asf_levies_model/tariffs.py
 
     Args:
-        payment_method (str): Payment method of interest, valid arguments are: \
-            Other Payment Method, PPM, Standard Credit.
-        price_cap_period (str): Date of interest in YYYY-MM-DD format. \
-            "LATEST" is also valid to get the most recently available price cap.
+        payment_method (str): Payment method of interest, valid arguments are: Other Payment Method, PPM, Standard Credit.
+        price_cap_period (str): Date of interest in YYYY-MM-DD format. "LATEST" is also valid to get the most recently available price cap.
 
     Raises:
         KeyError: If provided payment method type is not one of the valid types.
 
     Returns:
-        Tuple[Tariff, Tariff]: Gas Tariff and electricity Tariff objects corresponding to \
-            payment method and price cap period provided.
+        Tuple[Tariff, Tariff]: Gas Tariff and electricity Tariff objects corresponding to payment method and price cap period provided.
     """
 
-    # Get Annex 9
+    # Get Annex 9 which contains data on final energy price cap rates
     fileobject = levies_data_getters.download_annex_9(as_fileobject=True)
 
     if payment_method == "Other Payment Method":
@@ -167,12 +171,10 @@ def get_current_energy_price_cap_tariffs(
     Create gas and electricity Tariff objects from Ofgem price cap data.
 
     Args:
-        payment_method (str, optional): Payment method of interest, \
-            valid arguments are: Other Payment Method, PPM, Standard Credit. Defaults to "Other Payment Method".
+        payment_method (str, optional): Payment method of interest, valid arguments are: Other Payment Method, PPM, Standard Credit. Defaults to "Other Payment Method".
 
     Returns:
-        Tuple[Tariff, Tariff]: Gas Tariff and electricity Tariff objects \
-            corresponding to payment method for current price cap.
+        Tuple[Tariff, Tariff]: Gas Tariff and electricity Tariff objects corresponding to payment method for current price cap.
     """
     current_price_cap_period = datetime.now().strftime("%Y-%m-%d")
 
@@ -185,24 +187,29 @@ def get_current_energy_price_cap_tariffs(
 
 def get_levies(price_cap_period: str) -> LevyCollection:
     """
-    Create LevyCollection object containing Levy objects representing policy costs \
-        for the price cap period provided.
+    Create LevyCollection object containing Levy objects representing policy costs for the price cap period provided.
 
     Args:
-        price_cap_period (str): Date of interest in YYYY-MM-DD format.\
-            "LATEST" is also valid to get the most recently available price cap.
+        price_cap_period (str): Date of interest in YYYY-MM-DD format."LATEST" is also valid to get the most recently available price cap.
 
     Returns:
-        LevyCollection: LevyCollection object containing all Levy objects, \
-            each representing a levy present in the policy costs component of the price cap period provided.
+        LevyCollection: LevyCollection object containing all Levy objects, each representing a levy present in the policy costs component of the price cap period provided.
     """
 
-    # Denominator values from DESNZ subnational consumption domestic data, 2023
-    supply_elec = 96_517_461
-    supply_gas = 266_505_188
-    customers_gas = 24_605_467
-    customers_elec = 29_239_936
+    # Definining parameters that are required for levy rebalancing calculations
 
+    # Total domestic energy consumption and energy customer numbers from DESNZ subnational consumption domestic data, 2023
+    # These are to provide consistent charging bases across all levies when rebalancing
+    # Source: https://www.gov.uk/government/statistics/regional-and-local-authority-gas-consumption-statistics
+    # Source: https://www.gov.uk/government/statistics/regional-and-local-authority-electricity-consumption-statistics
+    supply_elec = 96_517_461  # total domestic electricity consumption in MWh, GB
+    supply_gas = (
+        266_505_188  # total domestic gas consumption in MWh, GB, non-weather corrected
+    )
+    customers_gas = 24_605_467  # number of domestic gas meters, GB
+    customers_elec = 29_239_936  # number of domestic electricity meters, GB
+
+    # Store in dictionary
     denominator_values = {
         "supply_elec": supply_elec,
         "supply_gas": supply_gas,
@@ -210,16 +217,14 @@ def get_levies(price_cap_period: str) -> LevyCollection:
         "customers_elec": customers_elec,
     }
 
-    # Scaling factor for estimating domestic share of FIT revenue
-    total_supply_elec = (
-        249_044_438  # DESNZ GB total electricity consumption - all meters (2023)
-    )
+    # Scaling factor for estimating domestic share of Feed-in Tariff revenue based on total GB electricity supply and exempt supply for Energy Intensive Industries
+    total_supply_elec = 249_044_438  # DESNZ GB total electricity consumption, 2023, all consumption (domestic and non-domestic)
     exempt_eii_supply = (
         10_529_633  # Apr-Jun2025 period, Annex 4, New FIT methodology tab
     )
     fit_scaling_factor = supply_elec / (total_supply_elec - exempt_eii_supply)
 
-    # Scaling factor for estimating domestic share of NCC revenue
+    # Scaling factor for estimating domestic share of Network Charging Compensation revenue
     ncc_eligible_supply = (
         119_380_310.7  # Mar-Jun2025 period, Annex 4, NCC methodology tab
     )
@@ -282,28 +287,26 @@ def get_rebalanced_levies(
     Create a LevyCollection containing Levy objects that have been rebalanced according to the scenario provided.
 
     Args:
-        scenario_name (str): Rebalancing scenario, valid arguments are "Remove all", "Rebalance RO and FiT to gas",\
-            "Remove from electricity", "Rebalance electricity unit cost levies to gas", "Rebalance all to gas".
-        price_cap_period (str, optional): Date of interest in YYYY-MM-DD format. \
-            "LATEST" is also valid to get the most recently available price cap.. Defaults to "LATEST".
+        scenario_name (str): Rebalancing scenario, valid arguments are "Remove all", "Rebalance RO and FiT to gas", "Remove from electricity", "Rebalance electricity unit cost levies to gas", "Rebalance all to gas".
+        price_cap_period (str, optional): Date of interest in YYYY-MM-DD format. "LATEST" is also valid to get the most recently available price cap.. Defaults to "LATEST".
 
     Raises:
         KeyError: If unrecognised scenario is provided.
 
     Returns:
-        LevyCollection: LevyCollection object containing rebalanced Levy objects, \
-            each representing a levy present in the policy costs component of the price cap period provided.
+        LevyCollection: LevyCollection object containing rebalanced Levy objects, each representing a levy present in the policy costs component of the price cap period provided.
     """
 
     """
-    Rebalance levies according to supplied denominators (consumption and customer charging base). \
-        Note: This is used for internal consistency in rebalancing as different charging base numbers are \
-            used across different levies to determine levy rates.
+    Rebalance levies according to supplied denominators (consumption and customer charging base). Note: This is used for internal consistency in rebalancing as different charging base numbers are used across different levies to determine levy rates.
     """
+    # Instanatiate current levies
     levy_collection_for_rebalancing = get_levies(
         price_cap_period=price_cap_period
     ).rebalance_to_denominators()
 
+    # Instantiate a dictionary that holds electricity/gas and variable/fixed revenue weights for each levy
+    # These weights will be modified in the rebalancing process
     rebalancing_weights = create_scenario_weights_dict(levy_collection_for_rebalancing)
 
     # Scenario: Remove all levies
