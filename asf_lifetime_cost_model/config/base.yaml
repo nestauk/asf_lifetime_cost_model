@@ -1,0 +1,58 @@
+# List of possible arguments for a variety of parameters and default values
+#that enable the calculation of the lifetime cost of different heating systems.
+
+ashp_scop_options: [
+    "reference", # 3
+    "high", # > 3  # Martina wrote 3-3.5
+    "low", # <3 # Martina wrote 2.74-3
+  ]
+
+boiler_life_span_default: 15 # years
+ashp_life_span_default: 15 # years
+boiler_efficiency_default: 0.85 # boiler efficiency
+
+maintenance_costs_default:
+  ashp:
+    annual_cost: 150 # GBP
+    number_of_year: 5 # warranty
+  boiler:
+    annual_cost: 80 # GBP
+    number_of_year: 15 # boiler lifetime
+
+ashp_subsidy_options:
+  [
+    "Flat",
+    "Slow stepdown",
+    "Fast stepdown",
+    "High",
+    "Zero from 2028",
+    "Smallest",
+    "No subsidy",
+  ]
+
+ashp_market_cost_change: [
+    { "name": "optimistic", "annual_price_reduction": 0.045 }, # 4.5% annual price reduction
+    { "name": "moderate", "annual_price_reduction": 0.025 }, # 2.5% annual price reduction
+    { "name": "conservative", "annual_price_reduction": 0.01 }, # 1% annual price reduction
+  ]
+
+ashp_loans_options: [True, False] # whether ASHPs are purchased with loans
+loan_interest_rate_default: 0.05 # percent
+
+fossil_fuel_prices_options: [
+    "reference", # DESNZ_Ref
+    "low", # DESNZ_Low
+    "high",
+  ] # DESNZ_High
+
+policy_levies_options: [
+    "reference", # current level flat
+    "removed", # both from electricity and gas
+    "partial rebalancing (RO+FiT)", # RO and FiT moved to gas
+    "removed_el", # removed from electricity
+    "full rebalancing", # total levies split 50:50
+    "no_VAT_elec", # VAT removed from electricity
+    "CORE model",
+  ]
+
+electricity_VAT_options: [True, False] # whether electricity VAT is included
