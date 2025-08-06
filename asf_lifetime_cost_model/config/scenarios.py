@@ -4,6 +4,8 @@ Dictionary with a list of pre-set scenarios and respective arguments used
 to calculate the lifetime cost of different heating systems.
 """
 
+from asf_lifetime_cost_model import config
+
 scenarios = {
     "baseline_A": {
         "name": "Baseline",
@@ -11,7 +13,7 @@ scenarios = {
         "ashp_subsidy": "Slow stepdown",
         "ashp_market_cost_change": "moderate",
         "purchasing_with_loans": True,
-        "interest_rate": 0.05,
+        "loan_interest_rate": config.get("loan_interest_rate_default"),
         "fossil_fuel_prices": "reference",
         "levy_rebalancing": "reference",
         "electricity_VAT": True,
@@ -22,7 +24,7 @@ scenarios = {
         "ashp_subsidy": "Zero from 2028",
         "ashp_market_cost_change": "moderate",
         "purchasing_with_loans": True,
-        "interest_rate": 0.05,
+        "loan_interest_rate": config.get("loan_interest_rate_default"),
         "fossil_fuel_prices": "reference",
         "levy_rebalancing": "reference",
         "electricity_VAT": True,
@@ -33,7 +35,7 @@ scenarios = {
         "ashp_subsidy": "Smallest",
         "ashp_market_cost_change": "moderate",
         "purchasing_with_loans": True,
-        "interest_rate": 0.05,
+        "loan_interest_rate": config.get("loan_interest_rate_default"),
         "fossil_fuel_prices": "reference",
         "levy_rebalancing": "CORE model",
         "electricity_VAT": True,
@@ -44,7 +46,7 @@ scenarios = {
         "ashp_subsidy": "Flat",
         "ashp_market_cost_change": "moderate",
         "purchasing_with_loans": True,
-        "interest_rate": 0.05,
+        "interest_rate": config.get("loan_interest_rate_default"),
         "fossil_fuel_prices": "high",
         "levy_rebalancing": "CORE model",
         "electricity_VAT": True,
