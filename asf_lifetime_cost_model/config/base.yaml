@@ -54,7 +54,7 @@ levy_rebalancing_options: [
     "Remove from electricity", # removed from electricity
     "Rebalance electricity unit cost levies to gas", # move all unit levies to gas
     "Rebalance all to gas", # all levies moved to gas
-    "no_VAT_elec", # VAT removed from electricity
+    "no VAT on electricity", # VAT removed from electricity
     "CORE model",
   ]
 
