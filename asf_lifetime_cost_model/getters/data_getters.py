@@ -341,7 +341,7 @@ def get_rebalanced_levies(
             }
 
     # Scenario: Rebalance RO and FiT to gas (partial rebalancing)
-    elif scenario_name == "rebalance RO and FiT to gas":
+    elif scenario_name == "rebalance ro and fit to gas":
         for levy in levy_collection_for_rebalancing[["ro", "fit"]]:
             rebalancing_weights[levy.short_name] = {
                 "new_electricity_weight": 0,
