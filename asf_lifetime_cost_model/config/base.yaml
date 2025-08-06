@@ -1,15 +1,17 @@
 # List of possible arguments for a variety of parameters and default values
 #that enable the calculation of the lifetime cost of different heating systems.
 
-ashp_scop_options: [
-    "reference", # 3
-    "high", # > 3  # Martina wrote 3-3.5
-    "low", # <3 # Martina wrote 2.74-3
+ashp_efficiency_options: [
+    "reference", # SCOP 3
+    "high", # SCOP > 3  # Martina wrote 3-3.5
+    "low", # SCOP <3 # Martina wrote 2.74-3
   ]
 
-boiler_life_span_default: 15 # years
-ashp_life_span_default: 15 # years
 boiler_efficiency_default: 0.85 # boiler efficiency
+
+life_span_default: # in years
+  ashp: 15 # years
+  boiler: 15 # years
 
 maintenance_costs_default:
   ashp:
