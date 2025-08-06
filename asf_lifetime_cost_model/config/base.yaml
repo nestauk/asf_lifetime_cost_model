@@ -41,10 +41,10 @@ ashp_market_cost_change: [
 ashp_loans_options: [True, False] # whether ASHPs are purchased with loans
 loan_interest_rate_default: 0.05 # percent
 
-fossil_fuel_prices_options: [
+wholesale_price_projection_options: [
     "reference", # DESNZ_Ref
-    "low", # DESNZ_Low
-    "high", # DESNZ_High
+    "low fossil fuel prices", # DESNZ_Low
+    "high fossil fuel prices", # DESNZ_High
   ]
 
 levy_rebalancing_options: [
