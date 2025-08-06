@@ -3,8 +3,8 @@
 
 ashp_efficiency_options: [
     "reference", # SCOP 3
-    "high", # SCOP > 3  # Martina wrote 3-3.5
-    "low", # SCOP <3 # Martina wrote 2.74-3
+    "high", # SCOP > 3
+    "low", # SCOP <3
   ]
 
 boiler_efficiency_default: 0.85 # boiler efficiency
@@ -48,8 +48,8 @@ fossil_fuel_prices_options: [
   ] # DESNZ_High
 
 levy_rebalancing_options: [
-    "reference", # current level flat
-    "Remove all", # both from electricity and gas
+    "reference", # no change to policy costs in current price cap
+    "Remove all", # removes all from electricity and gas
     "Rebalance RO and FiT to gas", # RO and FiT moved to gas
     "Remove from electricity", # removed from electricity
     "Rebalance electricity unit cost levies to gas", # total levies split 50:50
