@@ -4,7 +4,7 @@
 ashp_efficiency_options: [
     "reference", # SCOP 3
     "high", # SCOP > 3
-    "low", # SCOP <3
+    "low", # SCOP < 3
   ]
 
 boiler_efficiency_default: 0.85 # boiler efficiency
@@ -23,13 +23,13 @@ maintenance_costs_default:
 
 ashp_subsidy_options:
   [
-    "Flat",
-    "Slow stepdown",
-    "Fast stepdown",
-    "High",
-    "Zero from 2028",
-    "Smallest",
-    "No subsidy",
+    "flat",
+    "slow stepdown",
+    "fast stepdown",
+    "high",
+    "zero from 2028",
+    "smallest",
+    "no subsidy",
   ]
 
 ashp_market_cost_change: [
@@ -44,18 +44,18 @@ loan_interest_rate_default: 0.05 # percent
 fossil_fuel_prices_options: [
     "reference", # DESNZ_Ref
     "low", # DESNZ_Low
-    "high",
-  ] # DESNZ_High
+    "high", # DESNZ_High
+  ]
 
 levy_rebalancing_options: [
     "reference", # no change to policy costs in current price cap
-    "Remove all", # removes all from electricity and gas
-    "Rebalance RO and FiT to gas", # RO and FiT moved to gas
-    "Remove from electricity", # removed from electricity
-    "Rebalance electricity unit cost levies to gas", # move all unit levies to gas
+    "remove all", # removes all from electricity and gas
+    "rebalance RO and FiT to gas", # RO and FiT moved to gas
+    "remove from electricity", # removed from electricity
+    "rebalance electricity unit cost levies to gas", # move all unit levies to gas
     "Rebalance all to gas", # all levies moved to gas
     "no VAT on electricity", # VAT removed from electricity
-    "CORE model",
+    "core model",
   ]
 
 electricity_VAT_options: [True, False] # whether electricity VAT is included
