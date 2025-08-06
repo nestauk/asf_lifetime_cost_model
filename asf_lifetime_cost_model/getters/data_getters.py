@@ -74,17 +74,38 @@ def get_desnz_wholesale_price_projections(
         "https://assets.publishing.service.gov.uk/media/6751eae76da7a3435fecbd8e/Annex_M_assumptions_growth_price.ods"
     )
 
+    # DESNZ scenario name mapping to our scenario names
+    scenario_name_map = {
+        "Reference": "reference",
+        "FFP_Low": "low fossil fuel prices",
+        "FFP_High": "high fossil fuel prices",
+        "GDP_Low": "low economic growth",
+        "GDP_High": "high economic growth",
+        "Existing": "existing policies only",
+    }
+
     # Extract tables for each projection scenario specified
     projection_scenarios = {}
     for scenario in projection_scenario_names:
+
+        # Select tab of interest
         df = all_sheets.get(scenario)
+
+        # Header row
         df.columns = df.iloc[1]
+
+        # Filter for rows of interest
         df = df[
             (df["fuel"] == "Electricity (volume weighted)")
             | (df["fuel"] == "Natural gas")
         ].reset_index(drop=True)
+
+        # Drop redundant columns
         df = df.drop(["coverage", "note"], axis=1)
-        df["projection scenario"] = scenario
+
+        # Look up scenario name to add to dataframe
+        df["projection scenario"] = scenario_name_map[scenario]
+
         projection_scenarios[scenario] = df
 
     # Combine individual scenario tables into one dataframe
@@ -307,7 +328,7 @@ def get_rebalanced_levies(
     rebalancing_weights = create_scenario_weights_dict(levy_collection_for_rebalancing)
 
     # Scenario: Remove all levies
-    if scenario_name == "Remove all":
+    if scenario_name == "remove all":
         for levy in levy_collection_for_rebalancing:
             rebalancing_weights[levy.short_name] = {
                 "new_electricity_weight": 0,
@@ -320,7 +341,7 @@ def get_rebalanced_levies(
             }
 
     # Scenario: Rebalance RO and FiT to gas (partial rebalancing)
-    elif scenario_name == "Rebalance RO and FiT to gas":
+    elif scenario_name == "rebalance RO and FiT to gas":
         for levy in levy_collection_for_rebalancing[["ro", "fit"]]:
             rebalancing_weights[levy.short_name] = {
                 "new_electricity_weight": 0,
@@ -333,7 +354,7 @@ def get_rebalanced_levies(
             }
 
     # Scenario: Remove all levies from electricity
-    elif scenario_name == "Remove from electricity":
+    elif scenario_name == "remove from electricity":
         for levy in [
             levy
             for levy in levy_collection_for_rebalancing
@@ -350,7 +371,7 @@ def get_rebalanced_levies(
             }
 
     # Scenario: Rebalance electricity unit cost levies to gas
-    elif scenario_name == "Rebalance electricity unit cost levies to gas":
+    elif scenario_name == "rebalance electricity unit cost levies to gas":
         for levy in [
             levy
             for levy in levy_collection_for_rebalancing
@@ -367,7 +388,7 @@ def get_rebalanced_levies(
             }
 
     # Scenario: Rebalance all levies to gas
-    elif scenario_name == "Rebalance all to gas":
+    elif scenario_name == "rebalance all to gas":
         for levy in [
             levy
             for levy in levy_collection_for_rebalancing

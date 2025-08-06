@@ -83,7 +83,7 @@ current_gas_tariff.calculate_total_consumption(consumption=2.7, vat=True)
 # This is not the most generalisable and sustainable approach as each time we want to integrate a new levy rebalancing scenario, it needs to be defined in this function. But we can revisit this later.
 
 # %%
-rebalanced_levies = data_getters.get_rebalanced_levies("Rebalance RO and FiT to gas")
+rebalanced_levies = data_getters.get_rebalanced_levies("rebalance RO and FiT to gas")
 
 # %% [markdown]
 # To demonstrate what has happened, consider just the Renewables Obligation (RO) levy. It was originally levied on electricity units (£/MWh of electricity), but this rebalancing scenario changes it so that it levied on gas units (£/MWh of gas).
