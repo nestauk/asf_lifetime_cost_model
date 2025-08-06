@@ -1,6 +1,6 @@
 """Scenarios configuration file.
 
-Dictionary with scenarios and respective arguments used
+Dictionary with a list of pre-set scenarios and respective arguments used
 to calculate the lifetime cost of different heating systems.
 """
 
