@@ -28,7 +28,11 @@ data_getters.get_property_heat_demand()
 
 # %%
 data_getters.get_desnz_wholesale_price_projections(
-    projection_scenario_names=["Reference", "FFP_Low", "FFP_High"]
+    projection_scenario_names=[
+        "reference",
+        "low fossil fuel prices",
+        "high fossil fuel prices",
+    ]
 )
 
 # %% [markdown]

@@ -55,15 +55,15 @@ def get_desnz_wholesale_price_projections(
     Get dataframe containing DESNZ wholesale price projections for natural gas and electricity from 2001 to 2050 under different scenarios.
 
     Possible scenarios include:
-    - "Reference"
-    - "FFP_Low" (reference assumptions with lower fossil fuel prices)
-    - "FFP_High" (reference assumptions with higher fossil fuel prices)
-    - "GDP_Low" (reference assumptions with lower economic growth)
-    - "GDP_High" (reference assumptions with higher economic growth)
-    - "Existing" (reference assumptions, but excluding planned policies)
+    - "reference"
+    - "low fossil fuel prices" (reference assumptions with lower fossil fuel prices)
+    - "high fossil fuel prices" (reference assumptions with higher fossil fuel prices)
+    - "low economic growth" (reference assumptions with lower economic growth)
+    - "high economic growth" (reference assumptions with higher economic growth)
+    - "existing policies only" (reference assumptions, but excluding planned policies)
 
     Args:
-        projection_scenario_names (list[str]): List of scenario names of interest, valid scenario names as listed above correspond to the original Excel tabs.
+        projection_scenario_names (list[str]): List of scenario names of interest, valid scenario names as listed above.
 
     Returns:
         pd.DataFrame: Dataframe containing time-series data for price projections for natural gas and electricity.
@@ -74,14 +74,14 @@ def get_desnz_wholesale_price_projections(
         "https://assets.publishing.service.gov.uk/media/6751eae76da7a3435fecbd8e/Annex_M_assumptions_growth_price.ods"
     )
 
-    # DESNZ scenario name mapping to our scenario names
+    # Mapping our scenario names to DESNZ scenario tab names
     scenario_name_map = {
-        "Reference": "reference",
-        "FFP_Low": "low fossil fuel prices",
-        "FFP_High": "high fossil fuel prices",
-        "GDP_Low": "low economic growth",
-        "GDP_High": "high economic growth",
-        "Existing": "existing policies only",
+        "reference": "Reference",
+        "low fossil fuel prices": "FFP_Low",
+        "high fossil fuel prices": "FFP_High",
+        "low economic growth": "GDP_Low",
+        "high economic growth": "GDP_High",
+        "existing policies only": "Existing",
     }
 
     # Extract tables for each projection scenario specified
@@ -89,7 +89,7 @@ def get_desnz_wholesale_price_projections(
     for scenario in projection_scenario_names:
 
         # Select tab of interest
-        df = all_sheets.get(scenario)
+        df = all_sheets.get(scenario_name_map.get(scenario))
 
         # Header row
         df.columns = df.iloc[1]
@@ -104,7 +104,7 @@ def get_desnz_wholesale_price_projections(
         df = df.drop(["coverage", "note"], axis=1)
 
         # Look up scenario name to add to dataframe
-        df["projection scenario"] = scenario_name_map[scenario]
+        df["projection scenario"] = scenario
 
         projection_scenarios[scenario] = df
 
