@@ -13,7 +13,7 @@ scenarios = {
         "purchasing_with_loans": True,
         "interest_rate": 0.05,
         "fossil_fuel_prices": "reference",
-        "policy_levies": "reference",
+        "levy_rebalancing": "reference",
         "electricity_VAT": True,
     },
     "scenario_B": {
@@ -24,7 +24,7 @@ scenarios = {
         "purchasing_with_loans": True,
         "interest_rate": 0.05,
         "fossil_fuel_prices": "reference",
-        "policy_levies": "reference",
+        "levy_rebalancing": "reference",
         "electricity_VAT": True,
     },
     "scenario_C": {
@@ -35,7 +35,7 @@ scenarios = {
         "purchasing_with_loans": True,
         "interest_rate": 0.05,
         "fossil_fuel_prices": "reference",
-        "policy_levies": "CORE model",
+        "levy_rebalancing": "CORE model",
         "electricity_VAT": True,
     },
     "scenario_D": {
@@ -46,7 +46,7 @@ scenarios = {
         "purchasing_with_loans": True,
         "interest_rate": 0.05,
         "fossil_fuel_prices": "high",
-        "policy_levies": "CORE model",
+        "levy_rebalancing": "CORE model",
         "electricity_VAT": True,
     },
 }

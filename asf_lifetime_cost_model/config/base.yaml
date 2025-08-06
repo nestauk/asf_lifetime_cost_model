@@ -47,12 +47,13 @@ fossil_fuel_prices_options: [
     "high",
   ] # DESNZ_High
 
-policy_levies_options: [
+levy_rebalancing_options: [
     "reference", # current level flat
-    "removed", # both from electricity and gas
-    "partial rebalancing (RO+FiT)", # RO and FiT moved to gas
-    "removed_el", # removed from electricity
-    "full rebalancing", # total levies split 50:50
+    "Remove all", # both from electricity and gas
+    "Rebalance RO and FiT to gas", # RO and FiT moved to gas
+    "Remove from electricity", # removed from electricity
+    "Rebalance electricity unit cost levies to gas", # total levies split 50:50
+    "Rebalance all to gas", # all levies moved to gas
     "no_VAT_elec", # VAT removed from electricity
     "CORE model",
   ]
