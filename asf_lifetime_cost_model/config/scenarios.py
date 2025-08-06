@@ -46,7 +46,7 @@ scenarios = {
         "ashp_subsidy": "Flat",
         "ashp_market_cost_change": "moderate",
         "purchasing_with_loans": True,
-        "interest_rate": config.get("loan_interest_rate_default"),
+        "loan_interest_rate": config.get("loan_interest_rate_default"),
         "fossil_fuel_prices": "high",
         "levy_rebalancing": "CORE model",
         "electricity_VAT": True,
