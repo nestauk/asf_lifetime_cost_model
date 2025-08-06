@@ -16,10 +16,10 @@ life_span_default: # in years
 maintenance_costs_default:
   ashp:
     annual_cost: 150 # GBP
-    number_of_year: 5 # warranty
+    number_of_years: 5 # HP warranty
   boiler:
     annual_cost: 80 # GBP
-    number_of_year: 15 # boiler lifetime
+    number_of_years: 15 # boiler lifetime
 
 ashp_subsidy_options:
   [
