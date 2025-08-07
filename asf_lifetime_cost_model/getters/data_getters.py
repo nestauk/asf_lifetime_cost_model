@@ -303,9 +303,22 @@ def get_levies(price_cap_period: str) -> LevyCollection:
     ]
     fileobject.close()
 
-    levy_collection = levies.LevyCollection(
-        "Policy Costs", "pc", list_levies, denominator_values
-    )
+    # NCC is a levy that was introduced in price cap period Apr2025-Sep2025
+    # If price cap period of interest is before this, the NCC levy introduces nan values
+    # that creates problems for LevyCollection calculations
+    # Check if NCC has nan revenue
+    ncc_levy = [levy for levy in list_levies if levy.short_name == "ncc"][0]
+    if pd.isna(ncc_levy.revenue):
+        list_levies_ncc_removed = [
+            levy for levy in list_levies if levy.short_name != "ncc"
+        ]
+        levy_collection = levies.LevyCollection(
+            "Policy Costs", "pc", list_levies_ncc_removed, denominator_values
+        )
+    else:
+        levy_collection = levies.LevyCollection(
+            "Policy Costs", "pc", list_levies, denominator_values
+        )
 
     return levy_collection
 
