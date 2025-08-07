@@ -216,60 +216,72 @@ def get_levies(price_cap_period: str) -> LevyCollection:
 
     # Definining parameters that are required for levy rebalancing calculations
 
-    # Total domestic energy consumption and energy customer numbers from DESNZ subnational consumption domestic data, 2023
+    # Total domestic energy consumption and energy customer numbers from DESNZ subnational consumption domestic data, 2023 - TO MOVE TO CONFIG
     # These are to provide consistent charging bases across all levies when rebalancing
     # Source: https://www.gov.uk/government/statistics/regional-and-local-authority-gas-consumption-statistics
     # Source: https://www.gov.uk/government/statistics/regional-and-local-authority-electricity-consumption-statistics
-    supply_elec = 96_517_461  # total domestic electricity consumption in MWh, GB
-    supply_gas = (
+    domestic_supply_electricity = (
+        96_517_461  # total domestic electricity consumption in MWh, GB
+    )
+    domestic_supply_gas = (
         266_505_188  # total domestic gas consumption in MWh, GB, non-weather corrected
     )
-    customers_gas = 24_605_467  # number of domestic gas meters, GB
-    customers_elec = 29_239_936  # number of domestic electricity meters, GB
+    domestic_customers_gas = 24_605_467  # number of domestic gas meters, GB
+    domestic_customers_electricity = (
+        29_239_936  # number of domestic electricity meters, GB
+    )
+    total_supply_electricity = 249_044_438  # DESNZ GB total electricity consumption, 2023, all consumption (domestic and non-domestic)
 
     # Store in dictionary
     denominator_values = {
-        "supply_elec": supply_elec,
-        "supply_gas": supply_gas,
-        "customers_gas": customers_gas,
-        "customers_elec": customers_elec,
+        "supply_elec": domestic_supply_electricity,
+        "supply_gas": domestic_supply_gas,
+        "customers_gas": domestic_customers_gas,
+        "customers_elec": domestic_customers_electricity,
     }
 
-    # Scaling factor for estimating domestic share of Feed-in Tariff revenue based on total GB electricity supply and exempt supply for Energy Intensive Industries
-    total_supply_elec = 249_044_438  # DESNZ GB total electricity consumption, 2023, all consumption (domestic and non-domestic)
-    exempt_eii_supply = (
-        10_529_633  # Apr-Jun2025 period, Annex 4, New FIT methodology tab
-    )
-    fit_scaling_factor = supply_elec / (total_supply_elec - exempt_eii_supply)
-
-    # Scaling factor for estimating domestic share of Network Charging Compensation revenue
-    ncc_eligible_supply = (
-        119_380_310.7  # Mar-Jun2025 period, Annex 4, NCC methodology tab
-    )
-    ncc_scaling_factor = supply_elec / ncc_eligible_supply
-
-    # Instantiate LevyCollection
+    # Get Ofgem Annex 4 Policy Cost model file
     fileobject = levies_data_getters.download_annex_4(as_fileobject=True)
+
+    # Calculate scaling factor for estimating domestic share of Feed-in Tariff revenue based on total GB electricity supply and exempt supply for Energy Intensive Industries
+    fit_levy = levies.FIT.from_dataframe(
+        levies_data_getters.process_data_FIT(fileobject),
+        price_cap=price_cap_period,
+    )
+    fit_exempt_eii_supply = fit_levy.ExemptSupplyEII
+    fit_scaling_factor = domestic_supply_electricity / (
+        total_supply_electricity - fit_exempt_eii_supply
+    )
+
+    # Calculate scaling factor for estimating domestic share of Network Charging Compensation revenue
+    ncc_levy = levies.NCC.from_dataframe(
+        levies_data_getters.process_data_NCC(fileobject),
+        price_cap=price_cap_period,
+    )
+    ncc_eligible_supply = ncc_levy.EligibleDemand
+    ncc_scaling_factor = domestic_supply_electricity / ncc_eligible_supply
+
+    # Instantiate levies in LevyCollection
     list_levies = [
         levies.RO.from_dataframe(
             levies_data_getters.process_data_RO(fileobject),
-            denominator=supply_elec,
+            denominator=domestic_supply_electricity,
             price_cap=price_cap_period,
         ),
         levies.AAHEDC.from_dataframe(
             levies_data_getters.process_data_AAHEDC(fileobject),
-            denominator=supply_elec,
+            denominator=domestic_supply_electricity,
             price_cap=price_cap_period,
         ),
         levies.GGL.from_dataframe(
             levies_data_getters.process_data_GGL(fileobject),
-            denominator=customers_gas,
+            denominator=domestic_customers_gas,
             price_cap=price_cap_period,
         ),
         levies.WHD.from_dataframe(
             levies_data_getters.process_data_WHD(fileobject),
-            customers_gas=customers_gas,
-            customers_elec=customers_elec,
+            customers_gas=domestic_customers_gas,
+            customers_elec=domestic_customers_electricity,
             price_cap=price_cap_period,
         ),
         levies.ECO4.from_dataframe(
@@ -355,11 +367,14 @@ def get_rebalanced_levies(
 
     # Scenario: Remove all levies from electricity
     elif scenario_name == "remove from electricity":
-        for levy in [
-            levy
+        # Get list of short names of levies on electricity
+        levies_on_electricity = [
+            levy.short_name
             for levy in levy_collection_for_rebalancing
             if levy.electricity_weight > 0
-        ]:
+        ]
+        # Rebalance levies in list
+        for levy in levy_collection_for_rebalancing[levies_on_electricity]:
             rebalancing_weights[levy.short_name] = {
                 "new_electricity_weight": 0,
                 "new_gas_weight": levy.gas_weight,
@@ -372,11 +387,14 @@ def get_rebalanced_levies(
 
     # Scenario: Rebalance electricity unit cost levies to gas
     elif scenario_name == "rebalance electricity unit cost levies to gas":
-        for levy in [
-            levy
+        # Get list of short names of levies on electricity unit costs
+        levies_on_electricity_units = [
+            levy.short_name
             for levy in levy_collection_for_rebalancing
             if levy.electricity_variable_weight > 0
-        ]:
+        ]
+        # Rebalance levies in list
+        for levy in levy_collection_for_rebalancing[levies_on_electricity_units]:
             rebalancing_weights[levy.short_name] = {
                 "new_electricity_weight": 0,
                 "new_gas_weight": 1,
@@ -389,11 +407,14 @@ def get_rebalanced_levies(
 
     # Scenario: Rebalance all levies to gas
     elif scenario_name == "rebalance all to gas":
-        for levy in [
-            levy
+        # Get list of short names of levies on electricity
+        levies_on_electricity = [
+            levy.short_name
             for levy in levy_collection_for_rebalancing
             if levy.electricity_weight > 0
-        ]:
+        ]
+        # Rebalance levies in list
+        for levy in levy_collection_for_rebalancing[levies_on_electricity]:
             rebalancing_weights[levy.short_name] = {
                 "new_electricity_weight": 0,
                 "new_gas_weight": 1,
@@ -405,7 +426,7 @@ def get_rebalanced_levies(
             }
 
     else:
-        raise KeyError("Unrecognised scenario name.")
+        raise ValueError("Unrecognised scenario name.")
 
     # Apply the rebalancing weights to the LevyCollection
     rebalanced_levy_collection = levy_collection_for_rebalancing.rebalance_levies(
