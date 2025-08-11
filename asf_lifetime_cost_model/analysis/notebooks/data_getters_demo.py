@@ -1,3 +1,20 @@
+# -*- coding: utf-8 -*-
+# ---
+# jupyter:
+#   jupytext:
+#     cell_metadata_filter: -all
+#     custom_cell_magics: kql
+#     text_representation:
+#       extension: .py
+#       format_name: percent
+#       format_version: '1.3'
+#       jupytext_version: 1.11.2
+#   kernelspec:
+#     display_name: asf-lifetime-cost-model (3.13.2)
+#     language: python
+#     name: python3
+# ---
+
 # %% [markdown]
 # ### Demonstrating how the data getters work
 
@@ -77,23 +94,38 @@ current_gas_tariff.calculate_total_consumption(consumption=2.7, vat=True)
 # - The total cost of all levies is the "policy costs" component (pc and pc_nil) of a Tariff
 
 # %% [markdown]
-# Scenarios that are recognised by the `get_rebalanced_levies()` function include:
-# - Remove all
-# - Rebalance RO and FiT to gas
-# - Remove from electricity
-# - Rebalance electricity unit cost levies to gas
-# - Rebalance all to gas
-#
-# This is not the most generalisable and sustainable approach as each time we want to integrate a new levy rebalancing scenario, it needs to be defined in this function. But we can revisit this later.
-
-# %%
-rebalanced_levies = data_getters.get_rebalanced_levies("rebalance ro and fit to gas")
-
-# %% [markdown]
-# To demonstrate what has happened, consider just the Renewables Obligation (RO) levy. It was originally levied on electricity units (£/MWh of electricity), but this rebalancing scenario changes it so that it levied on gas units (£/MWh of gas).
+# To create a set of Levy objects (held as a LevyCollection object) representing the levies from the most recent price cap, we use the following data getter:
 
 # %%
 current_levies = data_getters.get_levies(price_cap_period="LATEST")
+
+# %%
+current_levies
+
+# %% [markdown]
+# Let's say we want to apply a levy rebalancing scenario where we want all levies to be rebalanced to gas units.
+
+# %%
+# create list of short names of levies we want to rebalance
+levies_to_rebalance = [
+    levy.short_name for levy in current_levies
+]  # we want all of them
+
+# %%
+# provide getter function with list of levies, rebalancing weights and date of price cap period we're interested in
+rebalanced_levies = data_getters.get_rebalanced_levies(
+    levies_to_rebalance=levies_to_rebalance,
+    electricity_weight=0,
+    gas_weight=1,  # rebalance all to gas
+    tax_weight=0,
+    variable_electricity_weight=0,
+    fixed_electricity_weight=0,
+    variable_gas_weight=1,  # all on gas units
+    fixed_gas_weight=0,
+)
+
+# %% [markdown]
+# To demonstrate what has happened, consider just the Renewables Obligation (RO) levy. It was originally levied on electricity units (£/MWh of electricity), but this rebalancing scenario changes it so that it levied on gas units (£/MWh of gas).
 
 # %%
 current_levies["ro"].electricity_variable_rate, rebalanced_levies[
@@ -102,6 +134,46 @@ current_levies["ro"].electricity_variable_rate, rebalanced_levies[
 
 # %%
 current_levies["ro"].gas_variable_rate, rebalanced_levies["ro"].gas_variable_rate
+
+# %% [markdown]
+# Let's test another rebalancing scenario where we only want a subset of levies to be rebalanced.
+
+# %%
+levies_to_rebalance = ["fit"] # only want to rebalance fit
+
+# %%
+rebalanced_fit_only = data_getters.get_rebalanced_levies(
+    levies_to_rebalance=levies_to_rebalance,
+    electricity_weight=0,
+    gas_weight=1,  # rebalance all to gas
+    tax_weight=0,
+    variable_electricity_weight=0,
+    fixed_electricity_weight=0,
+    variable_gas_weight=1,  # all on gas units
+    fixed_gas_weight=0,
+)
+
+# %% [markdown]
+# Checking that the levy rates for FiT were successfully rebalanced
+
+# %%
+current_levies["fit"].electricity_variable_rate, rebalanced_fit_only[
+    "fit"
+].electricity_variable_rate
+
+# %%
+current_levies["fit"].gas_variable_rate, rebalanced_fit_only["fit"].gas_variable_rate
+
+# %% [markdown]
+# Check that a levy we didn't want rebalanced remains unaffected
+
+# %%
+current_levies["ro"].electricity_variable_rate, rebalanced_fit_only[
+    "ro"
+].electricity_variable_rate
+
+# %%
+current_levies["ro"].gas_variable_rate, rebalanced_fit_only["ro"].gas_variable_rate
 
 # %% [markdown]
 # **Replacing the policy costs component of a Tariff with rebalanced levies**

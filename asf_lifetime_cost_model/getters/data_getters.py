@@ -53,6 +53,7 @@ def get_desnz_wholesale_price_projections(
 ) -> pd.DataFrame:
     """
     Get dataframe containing DESNZ wholesale price projections for natural gas and electricity from 2001 to 2050 under different scenarios.
+    Prices are provided in 2023 prices.
 
     Possible scenarios include:
     - "reference"
@@ -324,126 +325,58 @@ def get_levies(price_cap_period: str) -> LevyCollection:
 
 
 def get_rebalanced_levies(
-    scenario_name: str, price_cap_period: str = "LATEST"
+    levies_to_rebalance: list[str],
+    electricity_weight: float,
+    gas_weight: float,
+    tax_weight: float,
+    variable_electricity_weight: float,
+    fixed_electricity_weight: float,
+    variable_gas_weight: float,
+    fixed_gas_weight: float,
+    price_cap_period: str = "LATEST",
 ) -> LevyCollection:
     """
-    Create a LevyCollection containing Levy objects that have been rebalanced according to the scenario provided.
+    Creates a LevyCollection where a given set of levies are rebalanced using the same rebalancing weights.
 
     Args:
-        scenario_name (str): Rebalancing scenario, valid arguments are "Remove all", "Rebalance RO and FiT to gas", "Remove from electricity", "Rebalance electricity unit cost levies to gas", "Rebalance all to gas".
-        price_cap_period (str, optional): Date of interest in YYYY-MM-DD format. "LATEST" is also valid to get the most recently available price cap.. Defaults to "LATEST".
-
-    Raises:
-        KeyError: If unrecognised scenario is provided.
+        levies_to_rebalance (list[str]): list containing short names of levies to be rebalanced with provided weights.
+        electricity_weight (float): [0, 1] indicating electricity proportion of levy revenue.
+        gas_weight (float): [0, 1] indicating electricity proportion of levy revenue.
+        tax_weight (float): [0, 1] indicating electricity proportion of levy revenue.
+        variable_electricity_weight (float): [0, 1] indicating the proportion of electricity revenue that is variable (e.g. per unit consumption).
+        fixed_electricity_weight (float): [0, 1] indicating the proportion of electricity revenue that is fixed (e.g. per customer).
+        variable_gas_weight (float): [0, 1] indicating the proportion of gas revenue that is variable (e.g. per unit consumption).
+        fixed_gas_weight (float): [0, 1] indicating the proportion of gas revenue that is fixed (e.g. per customer).
+        price_cap_period (str, optional): Date of interest in YYYY-MM-DD format. Defaults to "LATEST" to get the most recently available price cap.
 
     Returns:
         LevyCollection: LevyCollection object containing rebalanced Levy objects, each representing a levy present in the policy costs component of the price cap period provided.
     """
 
-    """
-    Rebalance levies according to supplied denominators (consumption and customer charging base). Note: This is used for internal consistency in rebalancing as different charging base numbers are used across different levies to determine levy rates.
-    """
-    # Instanatiate current levies
+    # Rebalance levies according to supplied denominators (consumption and customer charging base).
+    # Note: This is used for internal consistency in rebalancing as different charging base numbers are used across different levies to determine levy rates.
     levy_collection_for_rebalancing = get_levies(
         price_cap_period=price_cap_period
     ).rebalance_to_denominators()
 
-    # Instantiate a dictionary that holds electricity/gas and variable/fixed revenue weights for each levy
+    # Instantiate a dictionary that hold current electricity/gas and variable/fixed revenue weights for each levy
     # These weights will be modified in the rebalancing process
     rebalancing_weights = create_scenario_weights_dict(levy_collection_for_rebalancing)
 
-    # Scenario: Remove all levies
-    if scenario_name == "remove all":
-        for levy in levy_collection_for_rebalancing:
-            rebalancing_weights[levy.short_name] = {
-                "new_electricity_weight": 0,
-                "new_gas_weight": 0,
-                "new_tax_weight": 1,
-                "new_variable_weight_elec": 0,
-                "new_fixed_weight_elec": 0,
-                "new_variable_weight_gas": 0,
-                "new_fixed_weight_gas": 0,
-            }
-
-    # Scenario: Rebalance RO and FiT to gas (partial rebalancing)
-    elif scenario_name == "rebalance ro and fit to gas":
-        for levy in levy_collection_for_rebalancing[["ro", "fit"]]:
-            rebalancing_weights[levy.short_name] = {
-                "new_electricity_weight": 0,
-                "new_gas_weight": 1,
-                "new_tax_weight": 0,
-                "new_variable_weight_elec": 0,
-                "new_fixed_weight_elec": 0,
-                "new_variable_weight_gas": levy.electricity_variable_weight,
-                "new_fixed_weight_gas": levy.electricity_fixed_weight,
-            }
-
-    # Scenario: Remove all levies from electricity
-    elif scenario_name == "remove from electricity":
-        # Get list of short names of levies on electricity
-        levies_on_electricity = [
-            levy.short_name
-            for levy in levy_collection_for_rebalancing
-            if levy.electricity_weight > 0
-        ]
-        # Rebalance levies in list
-        for levy in levy_collection_for_rebalancing[levies_on_electricity]:
-            rebalancing_weights[levy.short_name] = {
-                "new_electricity_weight": 0,
-                "new_gas_weight": levy.gas_weight,
-                "new_tax_weight": levy.electricity_weight,
-                "new_variable_weight_elec": 0,
-                "new_fixed_weight_elec": 0,
-                "new_variable_weight_gas": levy.gas_variable_weight,
-                "new_fixed_weight_gas": levy.gas_fixed_weight,
-            }
-
-    # Scenario: Rebalance electricity unit cost levies to gas
-    elif scenario_name == "rebalance electricity unit cost levies to gas":
-        # Get list of short names of levies on electricity unit costs
-        levies_on_electricity_units = [
-            levy.short_name
-            for levy in levy_collection_for_rebalancing
-            if levy.electricity_variable_weight > 0
-        ]
-        # Rebalance levies in list
-        for levy in levy_collection_for_rebalancing[levies_on_electricity_units]:
-            rebalancing_weights[levy.short_name] = {
-                "new_electricity_weight": 0,
-                "new_gas_weight": 1,
-                "new_tax_weight": 0,
-                "new_variable_weight_elec": 0,
-                "new_fixed_weight_elec": 0,
-                "new_variable_weight_gas": 1,  # assumes no hybrid of unit cost/standing charge
-                "new_fixed_weight_gas": 0,  # assumes no hybrid of unit cost/standing charge
-            }
-
-    # Scenario: Rebalance all levies to gas
-    elif scenario_name == "rebalance all to gas":
-        # Get list of short names of levies on electricity
-        levies_on_electricity = [
-            levy.short_name
-            for levy in levy_collection_for_rebalancing
-            if levy.electricity_weight > 0
-        ]
-        # Rebalance levies in list
-        for levy in levy_collection_for_rebalancing[levies_on_electricity]:
-            rebalancing_weights[levy.short_name] = {
-                "new_electricity_weight": 0,
-                "new_gas_weight": 1,
-                "new_tax_weight": 0,
-                "new_variable_weight_elec": 0,
-                "new_fixed_weight_elec": 0,
-                "new_variable_weight_gas": levy.electricity_variable_weight,
-                "new_fixed_weight_gas": levy.electricity_fixed_weight,
-            }
-
-    else:
-        raise ValueError("Unrecognised scenario name.")
+    for short_name in levies_to_rebalance:
+        rebalancing_weights[short_name] = {
+            "new_electricity_weight": electricity_weight,
+            "new_gas_weight": gas_weight,
+            "new_tax_weight": tax_weight,
+            "new_variable_weight_elec": variable_electricity_weight,
+            "new_fixed_weight_elec": fixed_electricity_weight,
+            "new_variable_weight_gas": variable_gas_weight,
+            "new_fixed_weight_gas": fixed_gas_weight,
+        }
 
     # Apply the rebalancing weights to the LevyCollection
     rebalanced_levy_collection = levy_collection_for_rebalancing.rebalance_levies(
-        rebalancing_weights, scenario_name=scenario_name, inplace=False
+        rebalancing_weights, scenario_name="Rebalancing scenario", inplace=False
     )
 
     return rebalanced_levy_collection
