@@ -139,7 +139,7 @@ current_levies["ro"].gas_variable_rate, rebalanced_levies["ro"].gas_variable_rat
 # Let's test another rebalancing scenario where we only want a subset of levies to be rebalanced.
 
 # %%
-levies_to_rebalance = ["fit"] # only want to rebalance fit
+levies_to_rebalance = ["fit"]  # only want to rebalance fit
 
 # %%
 rebalanced_fit_only = data_getters.get_rebalanced_levies(
@@ -198,3 +198,18 @@ rebalanced_gas_tariff.calculate_total_consumption(consumption=2.7, vat=True)
 
 # %% [markdown]
 # The gas bill after rebalancing is higher because we moved some policy costs (RO and FiT) from electricity to gas.
+
+# %% [markdown]
+# ---
+
+# %% [markdown]
+# Additional: demonstrating how the NCC levy is not included if we choose a price cap period where it didn't exist yet
+
+# %%
+levies_to_test = data_getters.get_levies(price_cap_period="2024-01-01")
+
+# %%
+levies_to_test
+
+# %% [markdown]
+# The NCC levy is successfully excluded from this instantiatied LevyCollection.
