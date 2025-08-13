@@ -1,5 +1,5 @@
-# List of possible arguments for a variety of parameters and default values
-#that enable the calculation of the lifetime cost of different heating systems.
+# List of possible arguments and default values for a variety of parameters
+# that enable the calculation of lifetime costs for different heating systems
 
 ashp_efficiency_options: [
     "reference", # SCOP 3
@@ -14,15 +14,10 @@ life_span_default: # in years
   boiler: 15 # years
 
 maintenance_costs_default:
-  ashp:
-    annual_cost: 150 # GBP
-    number_of_years: 5 # HP warranty
-  boiler:
-    annual_cost: 80 # GBP
-    number_of_years: 15 # boiler lifetime
+  ashp: 80 # GBP
+  boiler: 80 # GBP
 
-ashp_subsidy_options:
-  [
+ashp_subsidy_options: [
     "flat",
     "slow stepdown",
     "fast stepdown",
@@ -30,16 +25,25 @@ ashp_subsidy_options:
     "zero from 2028",
     "smallest",
     "no subsidy",
+    "other", # for custom subsidy input
   ]
 
-ashp_market_cost_change: [
-    { "name": "optimistic", "annual_price_reduction": 0.045 }, # 4.5% annual price reduction
-    { "name": "moderate", "annual_price_reduction": 0.025 }, # 2.5% annual price reduction
-    { "name": "conservative", "annual_price_reduction": 0.01 }, # 1% annual price reduction
-  ]
+ashp_annual_cost_decrease_range: [-0.01, 0.05] # range for annual cost decrease for ASHPs -1% to +5%
+
+ashp_annual_cost_decrease_default: 0.01 # 1% annual cost decrease for ASHPs
 
 ashp_loans_options: [True, False] # whether ASHPs are purchased with loans
-loan_interest_rate_default: 0.05 # percent
+
+loan_interest_rate_options:
+  [
+    { "value": 0, "name": "0%", "helper": "fully subsidised loan" },
+    {
+      "value": 0.05,
+      "name": "5%",
+      "helper": "government borrowing or morgage",
+    },
+    { "value": 0.01, "name": "10%", "helper": "personal finance" },
+  ]
 
 wholesale_price_projection_options: [
     "reference", # DESNZ_Ref
@@ -47,15 +51,12 @@ wholesale_price_projection_options: [
     "high fossil fuel prices", # DESNZ_High
   ]
 
-levy_rebalancing_options: [
-    "reference", # no change to policy costs in current price cap
-    "remove all", # removes all from electricity and gas
-    "rebalance RO and FiT to gas", # RO and FiT moved to gas
-    "remove from electricity", # removed from electricity
-    "rebalance electricity unit cost levies to gas", # move all unit levies to gas
-    "Rebalance all to gas", # all levies moved to gas
-    "no VAT on electricity", # VAT removed from electricity
-    "core model",
+levy_rebalancing_options:
+  [
+    "rebalance unit costs between electricity and gas",
+    "remove all electricity levies to taxation",
   ]
 
 electricity_VAT_options: [True, False] # whether electricity VAT is included
+
+installation_year_max: 2035
