@@ -10,45 +10,41 @@ scenarios = {
     "baseline_A": {
         "name": "Baseline",
         "ashp_scop": "reference",
-        "ashp_subsidy": "Slow stepdown",
-        "ashp_market_cost_change": "moderate",
+        "ashp_subsidy": "zero from 2028",
+        "ashp_annual_cost_decrease": 0.01,  # moderate, 1% annual cost decrease
         "purchasing_with_loans": True,
         "loan_interest_rate": config.get("loan_interest_rate_default"),
         "wholesale_price_projection": "reference",
         "levy_rebalancing": "reference",
-        "electricity_VAT": True,
     },
     "scenario_B": {
-        "name": "Innovation",
-        "ashp_scop": "reference",
-        "ashp_subsidy": "Zero from 2028",
-        "ashp_market_cost_change": "moderate",
+        "name": "High innovation",
+        "ashp_scop": "high",
+        "ashp_subsidy": "fast stepdown",
+        "ashp_annual_cost_decrease": 0.05,  # optimistic, 5% annual cost decrease
         "purchasing_with_loans": True,
         "loan_interest_rate": config.get("loan_interest_rate_default"),
         "wholesale_price_projection": "reference",
-        "levy_rebalancing": "reference",
-        "electricity_VAT": True,
+        "levy_rebalancing": "",  # ?
     },
     "scenario_C": {
-        "name": "Rebalancing + low subsidies",
+        "name": "Cheaper electricity",
         "ashp_scop": "reference",
-        "ashp_subsidy": "Smallest",
-        "ashp_market_cost_change": "moderate",
+        "ashp_subsidy": "fast stepdown",
+        "ashp_annual_cost_decrease": 0.01,  # moderate, 1% annual cost decrease
+        "purchasing_with_loans": True,
+        "loan_interest_rate": config.get("loan_interest_rate_default"),
+        "wholesale_price_projection": "low fossil fuel prices",
+        "levy_rebalancing": "",  # ?
+    },
+    "scenario_D": {
+        "name": "High subsidy",
+        "ashp_scop": "reference",
+        "ashp_subsidy": "high",
+        "ashp_annual_cost_decrease": 0.01,  # moderate, 1% annual cost decrease
         "purchasing_with_loans": True,
         "loan_interest_rate": config.get("loan_interest_rate_default"),
         "wholesale_price_projection": "reference",
-        "levy_rebalancing": "CORE model",
-        "electricity_VAT": True,
-    },
-    "scenario_D": {
-        "name": "High gas prices + high subsidy",
-        "ashp_scop": "reference",
-        "ashp_subsidy": "Flat",
-        "ashp_market_cost_change": "moderate",
-        "purchasing_with_loans": True,
-        "loan_interest_rate": config.get("loan_interest_rate_default"),
-        "wholesale_price_projection": "high",
-        "levy_rebalancing": "CORE model",
-        "electricity_VAT": True,
+        "levy_rebalancing": "",  # ?
     },
 }

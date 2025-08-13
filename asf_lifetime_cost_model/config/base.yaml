@@ -45,6 +45,8 @@ loan_interest_rate_options:
     { "value": 0.01, "name": "10%", "helper": "personal finance" },
   ]
 
+loan_interest_rate_default: 0.05 # default loan interest rate
+
 wholesale_price_projection_options: [
     "reference", # DESNZ_Ref
     "low fossil fuel prices", # DESNZ_Low
@@ -56,7 +58,5 @@ levy_rebalancing_options:
     "rebalance unit costs between electricity and gas",
     "remove all electricity levies to taxation",
   ]
-
-electricity_VAT_options: [True, False] # whether electricity VAT is included
 
 installation_year_max: 2035
