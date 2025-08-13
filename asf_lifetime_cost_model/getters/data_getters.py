@@ -380,3 +380,23 @@ def get_rebalanced_levies(
     )
 
     return rebalanced_levy_collection
+
+def get_subsidy_options_data() -> pd.DataFrame:
+    """Gets dataframe of subsidy options data from S3.
+    There's a column for each year between 2024 and 2035 and each option
+    is provided a line in the dataset. Options include:
+        - "flat"
+        - "slow stepdown"
+        - "fast stepdown"
+        - "high"
+        - "zero from 2028"
+        - "smallest"
+        - "no subsidy"
+    For each pair of year and option, the value is the subsidy amount in GBP.
+    Returns:
+        pd.DataFrame: Dataframe of subsidy options
+    """
+    return _read_s3_csv_to_dataframe(
+        bucket_name="asf-lifetime-cost-model",
+        s3_key="inputs/subsidy_options.csv",
+    )
