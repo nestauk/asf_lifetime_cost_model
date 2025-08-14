@@ -192,7 +192,7 @@ def get_current_energy_price_cap_tariffs(
     Create gas and electricity Tariff objects from Ofgem price cap data.
 
     Args:
-        payment_method (str, optional): Payment method of interest, valid arguments are: Other Payment Method, PPM, Standard Credit. Defaults to "Other Payment Method".
+        payment_method (str, optional): Payment method of interest, valid arguments are: 'Other Payment Method', 'PPM', 'Standard Credit'. Defaults to "Other Payment Method".
 
     Returns:
         Tuple[Tariff, Tariff]: Gas Tariff and electricity Tariff objects corresponding to payment method for current price cap.
