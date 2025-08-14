@@ -10,7 +10,7 @@
 #       format_version: '1.3'
 #       jupytext_version: 1.11.2
 #   kernelspec:
-#     display_name: asf-lifetime-cost-model (3.13.2)
+#     display_name: .venv
 #     language: python
 #     name: python3
 # ---
@@ -19,8 +19,6 @@
 # ### Demonstrating how the data getters work
 
 # %%
-import pandas as pd
-
 import asf_lifetime_cost_model.getters.data_getters as data_getters
 
 # %% [markdown]
@@ -44,13 +42,7 @@ data_getters.get_property_heat_demand()
 # - Read from DESNZ website
 
 # %%
-data_getters.get_desnz_wholesale_price_projections(
-    projection_scenario_names=[
-        "reference",
-        "low fossil fuel prices",
-        "high fossil fuel prices",
-    ]
-)
+data_getters.get_desnz_wholesale_price_projections()
 
 # %% [markdown]
 # **Energy price cap data**
@@ -70,10 +62,10 @@ current_gas_tariff, current_electricity_tariff = (
 current_gas_tariff.__dict__
 
 # %% [markdown]
-# If we want to extract the unit cost of gas:
+# If we want to extract the unit cost of gas (consumption of 1 unit):
 
 # %%
-current_gas_tariff.calculate_variable_consumption(1)  # in £/MWh
+current_gas_tariff.calculate_variable_consumption(consumption = 1)  # in £/MWh
 
 # %% [markdown]
 # If we want to extract the gas standing charge:
@@ -85,7 +77,7 @@ current_gas_tariff.calculate_nil_consumption()  # in £/customer
 # If we want to extract a household's total gas bill (assuming we know their gas consumption) and including VAT:
 
 # %%
-current_gas_tariff.calculate_total_consumption(consumption=2.7, vat=True)
+current_gas_tariff.calculate_total_consumption(consumption=2.7, vat=True) # consumption as annual consumption in MWh
 
 # %% [markdown]
 # **Levies**
@@ -191,13 +183,13 @@ rebelanced_electricity_tariff = current_electricity_tariff.update_policy_costs(
 # We can compare a household's energy bill before and after rebalancing
 
 # %%
-current_gas_tariff.calculate_total_consumption(consumption=2.7, vat=True)
+current_gas_tariff.calculate_total_consumption(consumption=2.7, vat=True) # consumption as annual consumption in MWh
 
 # %%
-rebalanced_gas_tariff.calculate_total_consumption(consumption=2.7, vat=True)
+rebalanced_gas_tariff.calculate_total_consumption(consumption=2.7, vat=True) # consumption as annual consumption in MWh
 
 # %% [markdown]
-# The gas bill after rebalancing is higher because we moved some policy costs (RO and FiT) from electricity to gas.
+# In the example above, the gas bill after rebalancing is higher because we moved some policy costs (RO and FiT) from electricity to gas.
 
 # %% [markdown]
 # ---
