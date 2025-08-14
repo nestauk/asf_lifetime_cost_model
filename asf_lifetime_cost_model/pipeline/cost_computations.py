@@ -7,41 +7,20 @@ A module to handle cost computations for the ASF lifetime cost model.
 from typing import List
 
 # local imports
-from asf_lifetime_cost_model import config
 from asf_lifetime_cost_model.getters import data_getters
 
 
-def compute_total_maintenance_costs_from_heating_system(heating_system: str) -> float:
-    """Compute the maintenance costs for a given heating system.
-
-    Args:
-        heating_system (str): heating system.
-            Takes "ashp" (for air source heat pump) or "boiler" (for gas boiler).
-
-    Returns:
-        float: The total maintenance costs over the specified number of years.
-    """
-    if heating_system in ["ashp", "boiler"]:
-        maintenance_cost_info = config.get("annual_maintenance_cost")[heating_system]
-        annual_maintenance_cost = maintenance_cost_info.get("annual_cost")
-        years = maintenance_cost_info["number_of_years"]
-    else:
-        raise ValueError(f"Unsupported heating system: {heating_system}")
-
-    return annual_maintenance_cost * years
-
-
-def compute_total_maintenance_costs(annual_maintenance_costs: float, number_of_years: int) -> float:
-    """Compute the total amount of maintenance costs  given the annual maintenance costs and number of years.
+def compute_total_maintenance_costs(annual_maintenance_costs: float, life_span: int) -> float:
+    """Compute the total amount of maintenance costs given the annual maintenance costs and technology life span.
 
     Args:
         annual_maintenance_costs (float): The annual maintenance cost of the heating system.
-        number_of_years (int): The number of years over which to compute the maintenance costs.
+        life_span (int): Number of years assumed to be operational.
 
     Returns:
         float: The total maintenance costs over the specified number of years.
     """
-    return annual_maintenance_costs * number_of_years
+    return annual_maintenance_costs * life_span
 
 
 def compute_upfront_costs(
@@ -51,7 +30,7 @@ def compute_upfront_costs(
     annual_cost_reduction: float,
     installation_year: int,
     subtract_subsidy: bool,
-    subsidy_model: str,
+    subsidy_model: str = None,
 ) -> List[float]:
     """Computes the upfront costs of installing a heating system over a range of years.
 
