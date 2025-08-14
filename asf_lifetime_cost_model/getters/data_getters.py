@@ -1,7 +1,7 @@
 """Data getters for inputs into lifetime cost calculations including:
-- air source heat pump installation costs
-- annual heat demand for property archetype
-- DESNZ gas and electricity wholesale price projections (2023-2050)
+- inflation adjusted air source heat pump installation costs per decile and property archetype
+- annual heat demand for each property archetype
+- DESNZ gas and electricity wholesale price projections for natural gas and electricity (2023-2050)
 - Ofgem energy price cap
 - policy costs after levy rebalancing"""
 
