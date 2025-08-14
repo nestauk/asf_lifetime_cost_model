@@ -392,7 +392,7 @@ def get_heat_pump_subsidy_options_data() -> pd.DataFrame:
         - "zero from 2028"
         - "smallest"
         - "no subsidy"
-    For each pair of year and option, the value is the subsidy amount in GBP.
+    For each pair of year and option, the value is the amount in GBP for subsidising the cost of getting a heat pump in that year.
     Returns:
         pd.DataFrame: Dataframe of subsidy options
     """
