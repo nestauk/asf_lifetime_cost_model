@@ -72,7 +72,7 @@ def get_desnz_wholesale_price_projections(
     """
 
     # Read all sheets in Excel workbook into a dictionary from website
-    all_sheets = _read_excel_to_dataframe(
+    all_sheets = _read_excel_to_dataframe_or_dict(
         "https://assets.publishing.service.gov.uk/media/6751eae76da7a3435fecbd8e/Annex_M_assumptions_growth_price.ods"
     )
 
