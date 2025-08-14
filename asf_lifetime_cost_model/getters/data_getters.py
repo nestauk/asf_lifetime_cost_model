@@ -199,7 +199,7 @@ def get_current_energy_price_cap_tariffs(
     """
     current_price_cap_period = datetime.now().strftime("%Y-%m-%d")
 
-    gas_tariff, electricity_tariff = get_tariffs(
+    gas_tariff, electricity_tariff = _create_tariff_objects(
         payment_method=payment_method, price_cap_period=current_price_cap_period
     )
 
