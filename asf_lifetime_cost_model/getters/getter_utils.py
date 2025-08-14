@@ -28,7 +28,7 @@ def _read_s3_csv_to_dataframe(
     return pd.read_csv(content)
 
 
-def _read_excel_to_dataframe(file_url: str) -> Optional[dict[str, pd.DataFrame]]:
+def _read_excel_to_dataframe_or_dict(file_url: str) -> Optional[dict[str, pd.DataFrame]]:
     """
     Get a dictionary of dataframes from content in an Excel workbook stored at specified URL.
 
