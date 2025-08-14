@@ -70,10 +70,10 @@ current_gas_tariff, current_electricity_tariff = (
 current_gas_tariff.__dict__
 
 # %% [markdown]
-# If we want to extract the unit cost of gas:
+# If we want to extract the unit cost of gas (consumption of 1 unit):
 
 # %%
-current_gas_tariff.calculate_variable_consumption(1)  # in £/MWh
+current_gas_tariff.calculate_variable_consumption(consumption = 1)  # in £/MWh
 
 # %% [markdown]
 # If we want to extract the gas standing charge:
