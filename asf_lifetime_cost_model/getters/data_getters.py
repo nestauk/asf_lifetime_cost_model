@@ -118,7 +118,7 @@ def get_desnz_wholesale_price_projections(
     return combined_projection_scenarios
 
 
-def get_tariffs(payment_method: str, price_cap_period: str) -> Tuple[Tariff, Tariff]:
+def _create_tariff_objects(payment_method: str, price_cap_period: str) -> Tuple[Tariff, Tariff]:
     """
     Downloads Ofgem price cap data (Annex 9 file) and creates gas and electricity Tariff objects.
     
