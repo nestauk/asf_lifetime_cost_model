@@ -197,7 +197,7 @@ current_gas_tariff.calculate_total_consumption(consumption=2.7, vat=True)
 rebalanced_gas_tariff.calculate_total_consumption(consumption=2.7, vat=True)
 
 # %% [markdown]
-# The gas bill after rebalancing is higher because we moved some policy costs (RO and FiT) from electricity to gas.
+# In the example above, the gas bill after rebalancing is higher because we moved some policy costs (RO and FiT) from electricity to gas.
 
 # %% [markdown]
 # ---
