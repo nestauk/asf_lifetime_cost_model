@@ -52,8 +52,9 @@ def get_desnz_wholesale_price_projections(
     projection_scenario_names: list[str],
 ) -> pd.DataFrame:
     """
-    Get dataframe containing DESNZ wholesale price projections for natural gas and electricity from 2001 to 2050 under different scenarios.
-    Prices are provided in 2023 prices.
+    Downloads DESNZ wholesale price projections and creates dataframe containing price projections for natural gas and electricity from 2001 to 2050 (inflation-adjusted to 2023 prices) under different scenarios.
+    
+    The resulting DataFrame contains one column per year (with price data) and columns containing additional information such as: metric, fuel, units and projection_scenario
 
     Possible scenarios include:
     - "reference"
