@@ -60,7 +60,7 @@ def get_installation_cost(heating_system: str, archetype: str, decile: int = Non
     Args:
         heating_system (str): heating system.
             Takes "ashp" (for air source heat pump) or "boiler" (for gas boiler).
-        archetype (str): Household archetype
+        archetype (str): Propery archetype
         decile (int, optional): cost decile, only used for air source heat pumps.
 
     Raises:
@@ -71,12 +71,10 @@ def get_installation_cost(heating_system: str, archetype: str, decile: int = Non
     """
     if heating_system == "ashp":
         costs_data = data_getters.get_ashp_installation_costs()
-        cost_value = costs_data[(costs_data["decile"] == decile) & (costs_data["archetype"] == archetype)][
-            "cost"
-        ].values[0]
+        cost_value = costs_data[costs_data["archetype_label"] == archetype][f"cost_percentile_{decile}"].iloc[0]
     elif heating_system == "boiler":
         costs_data = data_getters.get_gas_boiler_installation_costs()
-        cost_value = costs_data[(costs_data["archetype"] == archetype)]["cost"].values[0]
+        cost_value = costs_data[(costs_data["archetype_label"] == archetype)]["cost"].iloc[0]
     else:
         raise ValueError(f"Unsupported heating system: {heating_system}")
 
@@ -123,7 +121,7 @@ def compute_upfront_costs(
     if subtract_subsidy and heating_system == "ashp":
         # If the heating system is an ASHP and we want to subtract the subsidy, we need to get the subsidy data
         subsidy_data = data_getters.get_ashp_subsidy_options_data()
-        subsidy_value = subsidy_data[subsidy_data["model"] == subsidy_model]["amount"].values[0]
+        subsidy_value = subsidy_data[subsidy_data["model"] == subsidy_model][str(installation_year)].iloc[0]
 
         return installation_cost - subsidy_value
 
@@ -133,23 +131,29 @@ def compute_upfront_costs(
 def compute_total_lifetime_costs(
     heating_system: str,
     archetype: str,
-    decile: int,
     annual_cost_reduction: float,
-    start_year: int,
+    installation_year: int,
+    annual_maintenance_costs: float,
+    life_span: int,
     subtract_subsidy: bool,
+    decile: int = None,
+    subsidy_model: str = None,
 ) -> float:
     """Computes the total costs of a heating system over a specified number of years.
 
     Args:
         heating_system (str): heating system.
             Takes "ashp" (for air source heat pump) or "boiler" (for gas boiler).
-        archetype (str): Household archetype
-        decile (int): household decile
+        archetype (str): Property archetype
         annual_cost_reduction (float): how much the cost of installing the heating system reduces each year
             in comparison to the previous year.
-        start_year (int): the year in which the heating system is installed.
+        installation_year (int): the year in which the heating system is installed.
                     This should be below 2035.
+        annual_maintenance_costs (float): The annual maintenance cost of the heating system.
+        life_span (int): Number of years the heating system is assumed to be operational.
         subtract_subsidy (bool): whether to subtract the subsidy from the upfront costs.
+        decile (int, optional): cost decile, only used for air source heat pumps.
+        subsidy_model (str, optional): The subsidy model to get the subsidy to be subtracted if applicable.
 
     Returns:
         float: The total costs over the specified number of years.
@@ -159,10 +163,13 @@ def compute_total_lifetime_costs(
         archetype=archetype,
         decile=decile,
         annual_cost_reduction=annual_cost_reduction,
-        installation_year=start_year,
+        installation_year=installation_year,
         subtract_subsidy=subtract_subsidy,
+        subsidy_model=subsidy_model,
     )
-    maintenance_cost = compute_total_maintenance_costs(heating_system)
+    maintenance_cost = compute_total_maintenance_costs(
+        annual_maintenance_costs=annual_maintenance_costs, life_span=life_span
+    )
 
     # running_costs = compute_running_costs()
 
