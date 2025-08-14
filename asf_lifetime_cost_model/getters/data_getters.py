@@ -106,7 +106,7 @@ def get_desnz_wholesale_price_projections(
         df = df.drop(["coverage", "note"], axis=1)
 
         # Look up scenario name to add to dataframe
-        df["projection scenario"] = scenario
+        df["projection_scenario"] = scenario
 
         projection_scenarios[scenario] = df
 
