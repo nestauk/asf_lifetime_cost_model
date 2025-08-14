@@ -256,7 +256,7 @@ def get_levies(price_cap_period: str) -> LevyCollection:
         total_supply_electricity - fit_exempt_eii_supply
     )
 
-    # Calculate scaling factor for estimating domestic share of Network Charging Compensation revenue
+    # Calculate scaling factor for estimating domestic share of Network Charging Compensation (NCC) revenue
     ncc_levy = levies.NCC.from_dataframe(
         levies_data_getters.process_data_NCC(fileobject),
         price_cap=price_cap_period,
