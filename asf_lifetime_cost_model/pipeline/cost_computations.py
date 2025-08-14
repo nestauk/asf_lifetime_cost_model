@@ -21,7 +21,7 @@ def compute_total_maintenance_costs(annual_maintenance_costs: float, life_span: 
 
     Args:
         annual_maintenance_costs (float): The annual maintenance cost of the heating system.
-        life_span (int): Number of years assumed to be operational.
+        life_span (int): Number of years the heating system is assumed to be operational.
 
     Returns:
         float: The total maintenance costs over the specified number of years.
@@ -167,3 +167,23 @@ def compute_total_lifetime_costs(
     # running_costs = compute_running_costs()
 
     return upfront_cost + maintenance_cost
+
+
+def create_cost_breakdown_per_year_in_lifetime(cost_value: float, life_span: int, installation_year: int) -> dict:
+    """Creates a breakdown of costs per year in the lifetime of the heating system.
+
+    Args:
+        cost_value (float): The total cost value to be broken down.
+        life_span (int): Number of years the heating system is assumed to be operational.
+        installation_year (int): The year in which the heating system is installed.
+
+    Returns:
+        dict: A dictionary with years as keys and cost values as values.
+    """
+    cost_per_year = cost_value / life_span
+    cost_breakdown = dict.fromkeys(
+        range(installation_year, installation_year + life_span),
+        cost_per_year,
+    )
+
+    return cost_breakdown
