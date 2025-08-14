@@ -128,7 +128,7 @@ def _create_tariff_objects(payment_method: str, price_cap_period: str) -> Tuple[
     See full documentation at: https://github.com/nestauk/asf_levies_model/blob/dev/asf_levies_model/tariffs.py
 
     Args:
-        payment_method (str): Payment method of interest, valid arguments are: Other Payment Method, PPM, Standard Credit.
+        payment_method (str): Payment method of interest, valid arguments are: 'Other Payment Method', 'PPM', 'Standard Credit'.
         price_cap_period (str): Date of interest in YYYY-MM-DD format. "LATEST" is also valid to get the most recently available price cap.
 
     Raises:
