@@ -1,7 +1,7 @@
 """Data getters for inputs into lifetime cost calculations including:
-- air source heat pump installation costs
-- annual heat demand for property archetype
-- DESNZ gas and electricity wholesale price projections (2023-2050)
+- inflation adjusted air source heat pump installation costs per decile and property archetype
+- annual heat demand for each property archetype
+- DESNZ gas and electricity wholesale price projections for natural gas and electricity (2023-2050)
 - Ofgem energy price cap
 - policy costs after levy rebalancing"""
 
@@ -19,16 +19,16 @@ from asf_levies_model.summary import create_scenario_weights_dict
 
 from asf_lifetime_cost_model.getters.getter_utils import (
     _read_s3_csv_to_dataframe,
-    _read_excel_to_dataframe,
+    _read_excel_to_dataframe_or_dict,
 )
 
 
 def get_ashp_installation_costs() -> pd.DataFrame:
     """
-    Get dataframe of air-source heat pump installations costs from S3.
+    Get dataframe of inflation-adjusted air-source heat pump installations costs for each decile in different property archetypes from S3.
 
     Returns:
-        pd.DataFrame: Dataframe of air-source heat pump installation costs for each decile in different property archetypes.
+        pd.DataFrame: Dataframe of air-source heat pump installation costs
     """
     return _read_s3_csv_to_dataframe(
         bucket_name="asf-lifetime-cost-model",
@@ -38,24 +38,23 @@ def get_ashp_installation_costs() -> pd.DataFrame:
 
 def get_property_heat_demand() -> pd.DataFrame:
     """
-    Get dataframe of average heat demand data from S3.
+    Get dataframe of average heat demand data from S3 for each property archetype.
 
     Returns:
-        pd.DataFrame: Dataframe of average heat demand for each decile in different property archetypes. Deciles are based on ashp installation costs.
+        pd.DataFrame: Dataframe of average heat demand
     """
     return _read_s3_csv_to_dataframe(
         bucket_name="asf-lifetime-cost-model", s3_key="inputs/property_heat_demand.csv"
     )
 
 
-def get_desnz_wholesale_price_projections(
-    projection_scenario_names: list[str],
-) -> pd.DataFrame:
+def get_desnz_wholesale_price_projections() -> pd.DataFrame:
     """
-    Get dataframe containing DESNZ wholesale price projections for natural gas and electricity from 2001 to 2050 under different scenarios.
-    Prices are provided in 2023 prices.
+    Downloads DESNZ wholesale price projections and creates dataframe containing price projections for natural gas and electricity from 2001 to 2050 (inflation-adjusted to 2023 prices) under different scenarios.
 
-    Possible scenarios include:
+    The resulting DataFrame contains one column per year (with price data) and columns containing additional information such as: metric, fuel, units and projection_scenario
+
+    Scenarios for which data is available include:
     - "reference"
     - "low fossil fuel prices" (reference assumptions with lower fossil fuel prices)
     - "high fossil fuel prices" (reference assumptions with higher fossil fuel prices)
@@ -63,15 +62,13 @@ def get_desnz_wholesale_price_projections(
     - "high economic growth" (reference assumptions with higher economic growth)
     - "existing policies only" (reference assumptions, but excluding planned policies)
 
-    Args:
-        projection_scenario_names (list[str]): List of scenario names of interest, valid scenario names as listed above.
 
     Returns:
         pd.DataFrame: Dataframe containing time-series data for price projections for natural gas and electricity.
     """
 
     # Read all sheets in Excel workbook into a dictionary from website
-    all_sheets = _read_excel_to_dataframe(
+    all_sheets = _read_excel_to_dataframe_or_dict(
         "https://assets.publishing.service.gov.uk/media/6751eae76da7a3435fecbd8e/Annex_M_assumptions_growth_price.ods"
     )
 
@@ -85,12 +82,11 @@ def get_desnz_wholesale_price_projections(
         "existing policies only": "Existing",
     }
 
-    # Extract tables for each projection scenario specified
+    # Extract tables for each projection scenario
     projection_scenarios = {}
-    for scenario in projection_scenario_names:
-
+    for scenario_name, scenario_tab_name in scenario_name_map.items():
         # Select tab of interest
-        df = all_sheets.get(scenario_name_map.get(scenario))
+        df = all_sheets.get(scenario_tab_name)
 
         # Header row
         df.columns = df.iloc[1]
@@ -105,9 +101,9 @@ def get_desnz_wholesale_price_projections(
         df = df.drop(["coverage", "note"], axis=1)
 
         # Look up scenario name to add to dataframe
-        df["projection scenario"] = scenario
+        df["projection_scenario"] = scenario_name
 
-        projection_scenarios[scenario] = df
+        projection_scenarios[scenario_name] = df
 
     # Combine individual scenario tables into one dataframe
     combined_projection_scenarios = pd.concat(
@@ -117,16 +113,19 @@ def get_desnz_wholesale_price_projections(
     return combined_projection_scenarios
 
 
-def get_tariffs(payment_method: str, price_cap_period: str) -> Tuple[Tariff, Tariff]:
+def _create_tariff_objects(
+    payment_method: str, price_cap_period: str
+) -> Tuple[Tariff, Tariff]:
     """
-    Create gas and electricity Tariff objects from Ofgem price cap data (Annex 9 file).
+    Downloads Ofgem price cap data (Annex 9 file) and creates gas and electricity Tariff objects.
+
     A Tariff object is a representation of the rates that are charged against energy consumption.
-    Attributes include fuel type and price cap period interval, and also hold values of each
+    Each tariff object includes attributes such as fuel type and price cap period interval, also holding values of each
     cost component that contributes to the total cost of energy as a standing charge and as a unit cost.
     See full documentation at: https://github.com/nestauk/asf_levies_model/blob/dev/asf_levies_model/tariffs.py
 
     Args:
-        payment_method (str): Payment method of interest, valid arguments are: Other Payment Method, PPM, Standard Credit.
+        payment_method (str): Payment method of interest, valid arguments are: 'Other Payment Method', 'PPM', 'Standard Credit'.
         price_cap_period (str): Date of interest in YYYY-MM-DD format. "LATEST" is also valid to get the most recently available price cap.
 
     Raises:
@@ -190,14 +189,14 @@ def get_current_energy_price_cap_tariffs(
     Create gas and electricity Tariff objects from Ofgem price cap data.
 
     Args:
-        payment_method (str, optional): Payment method of interest, valid arguments are: Other Payment Method, PPM, Standard Credit. Defaults to "Other Payment Method".
+        payment_method (str, optional): Payment method of interest, valid arguments are: 'Other Payment Method', 'PPM', 'Standard Credit'. Defaults to "Other Payment Method".
 
     Returns:
         Tuple[Tariff, Tariff]: Gas Tariff and electricity Tariff objects corresponding to payment method for current price cap.
     """
     current_price_cap_period = datetime.now().strftime("%Y-%m-%d")
 
-    gas_tariff, electricity_tariff = get_tariffs(
+    gas_tariff, electricity_tariff = _create_tariff_objects(
         payment_method=payment_method, price_cap_period=current_price_cap_period
     )
 
@@ -244,7 +243,7 @@ def get_levies(price_cap_period: str) -> LevyCollection:
     # Get Ofgem Annex 4 Policy Cost model file
     fileobject = levies_data_getters.download_annex_4(as_fileobject=True)
 
-    # Calculate scaling factor for estimating domestic share of Feed-in Tariff revenue based on total GB electricity supply and exempt supply for Energy Intensive Industries
+    # Calculate scaling factor for estimating domestic share of Feed-in Tariff (FIT) revenue based on total GB electricity supply and exempt supply for Energy Intensive Industries (EII)
     fit_levy = levies.FIT.from_dataframe(
         levies_data_getters.process_data_FIT(fileobject),
         price_cap=price_cap_period,
@@ -254,7 +253,7 @@ def get_levies(price_cap_period: str) -> LevyCollection:
         total_supply_electricity - fit_exempt_eii_supply
     )
 
-    # Calculate scaling factor for estimating domestic share of Network Charging Compensation revenue
+    # Calculate scaling factor for estimating domestic share of Network Charging Compensation (NCC) revenue
     ncc_levy = levies.NCC.from_dataframe(
         levies_data_getters.process_data_NCC(fileobject),
         price_cap=price_cap_period,
@@ -296,30 +295,25 @@ def get_levies(price_cap_period: str) -> LevyCollection:
             scaling_factor=fit_scaling_factor,
             price_cap=price_cap_period,
         ),
-        levies.NCC.from_dataframe(
-            levies_data_getters.process_data_NCC(fileobject),
-            scaling_factor=ncc_scaling_factor,
-            price_cap=price_cap_period,
-        ),
     ]
-    fileobject.close()
 
     # NCC is a levy that was introduced in price cap period Apr2025-Sep2025
     # If price cap period of interest is before this, the NCC levy introduces nan values
     # that creates problems for LevyCollection calculations
     # Check if NCC has nan revenue
-    ncc_levy = [levy for levy in list_levies if levy.short_name == "ncc"][0]
-    if pd.isna(ncc_levy.revenue):
-        list_levies_ncc_removed = [
-            levy for levy in list_levies if levy.short_name != "ncc"
-        ]
-        levy_collection = levies.LevyCollection(
-            "Policy Costs", "pc", list_levies_ncc_removed, denominator_values
-        )
-    else:
-        levy_collection = levies.LevyCollection(
-            "Policy Costs", "pc", list_levies, denominator_values
-        )
+    ncc_levy = levies.NCC.from_dataframe(
+        levies_data_getters.process_data_NCC(fileobject),
+        scaling_factor=ncc_scaling_factor,
+        price_cap=price_cap_period,
+    )
+    if not pd.isna(ncc_levy.revenue):
+        list_levies.append(ncc_levy)
+
+    fileobject.close()
+
+    levy_collection = levies.LevyCollection(
+        "Policy Costs", "pc", list_levies, denominator_values
+    )
 
     return levy_collection
 
@@ -341,12 +335,26 @@ def get_rebalanced_levies(
     Args:
         levies_to_rebalance (list[str]): list containing short names of levies to be rebalanced with provided weights.
         electricity_weight (float): [0, 1] indicating electricity proportion of levy revenue.
-        gas_weight (float): [0, 1] indicating electricity proportion of levy revenue.
-        tax_weight (float): [0, 1] indicating electricity proportion of levy revenue.
+            0 means that 0% of the total revenue of the policy scheme is levied on electricity bills.
+            1 means that 100% of the total revenue of the policy scheme is levied on electricity bills.
+        gas_weight (float): [0, 1] indicating gas proportion of levy revenue.
+            0 means that 0% of the total revenue of the policy scheme is levied on gas bills.
+            1 means that 100% of the total revenue of the policy scheme is levied on gas bills.
+        tax_weight (float): [0, 1] indicating general taxation proportion of levy revenue.
+            0 means that 0% of the total revenue of the policy scheme is funded through general taxation (not on energy bills at all).
+            1 means that 100% of the total revenue of the policy scheme is funded through general taxation (not on energy bills at all).
         variable_electricity_weight (float): [0, 1] indicating the proportion of electricity revenue that is variable (e.g. per unit consumption).
+            0 means that 0% of the total revenue of the policy scheme to be raised through electricity bills is levied against electricity units.
+            1 means that 100% of the total revenue of the policy scheme to be raised through electricity bills is levied against electricity units.
         fixed_electricity_weight (float): [0, 1] indicating the proportion of electricity revenue that is fixed (e.g. per customer).
+            0 means that 0% of the total revenue of the policy scheme to be raised through electricity bills is levied as a standing charge (per electricity customer basis).
+            1 means that 100% of the total revenue of the policy scheme to be raised through electricity bills is levied as a standing charge (per electricity customer basis).
         variable_gas_weight (float): [0, 1] indicating the proportion of gas revenue that is variable (e.g. per unit consumption).
+            0 means that 0% of the total revenue of the policy scheme to be raised through gas bills is levied against gas units.
+            1 means that 100% of the total revenue of the policy scheme to be raised through gas bills is levied against gas units.
         fixed_gas_weight (float): [0, 1] indicating the proportion of gas revenue that is fixed (e.g. per customer).
+            0 means that 0% of the total revenue of the policy scheme to be raised through gas bills is levied as a standing charge (per gas customer basis).
+            1 means that 100% of the total revenue of the policy scheme to be raised through gas bills is levied as a standing charge (per gas customer basis).
         price_cap_period (str, optional): Date of interest in YYYY-MM-DD format. Defaults to "LATEST" to get the most recently available price cap.
 
     Returns:
