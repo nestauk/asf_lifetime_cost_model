@@ -5,7 +5,7 @@ from asf_lifetime_cost_model.pipeline import cost_computations
 # The cost of installing an air source heat pump, subtracting the subsidy from the upfront cost:
 
 # %%
-cost_computations.compute_upfront_costs(
+cost_computations.compute_upfront_cost(
     heating_system="ashp",
     archetype="pre_1950_semi_terraced_house_5_rooms",
     annual_cost_reduction=0.01,
@@ -19,7 +19,7 @@ cost_computations.compute_upfront_costs(
 # The cost of installing an air source heat pump, WITHOUT subtracting the subsidy from the upfront cost:
 
 # %%
-cost_computations.compute_upfront_costs(
+cost_computations.compute_upfront_cost(
     heating_system="ashp",
     archetype="pre_1950_semi_terraced_house_5_rooms",
     annual_cost_reduction=0.01,
@@ -36,7 +36,7 @@ cost_computations.compute_upfront_costs(
 # The cost of installing a gas boiler:
 
 # %%
-cost_computations.compute_upfront_costs(
+cost_computations.compute_upfront_cost(
     heating_system="boiler",
     archetype="bungalows pre-1950",
     annual_cost_reduction=0.01,
@@ -48,7 +48,7 @@ cost_computations.compute_upfront_costs(
 # Total maintenance costs:
 
 # %%
-cost_computations.compute_total_maintenance_costs(annual_maintenance_costs=80, life_span=15)
+cost_computations.compute_total_maintenance_cost(annual_maintenance_costs=80, life_span=15)
 
 # %% [markdown]
 # Total lifetime cost for an air source heat pump:

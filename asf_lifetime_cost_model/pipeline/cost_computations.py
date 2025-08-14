@@ -8,16 +8,13 @@ Functions to handle cost computations for the ASF lifetime cost model including:
 as a total and as a breakdown per year in the lifetime of the heating system.
 """
 
-# package imports
-from typing import List
-
 # local imports
 from asf_lifetime_cost_model import config
 from asf_lifetime_cost_model.getters import data_getters
 
 
-def compute_total_maintenance_costs(annual_maintenance_costs: float, life_span: int) -> float:
-    """Computes the total amount of maintenance costs given the annual maintenance costs and technology life span.
+def compute_total_maintenance_cost(annual_maintenance_costs: float, life_span: int) -> float:
+    """Computes the total maintenance cost for technology given the annual maintenance cost and the expected lifetime.
 
     Args:
         annual_maintenance_costs (float): The annual maintenance cost of the heating system.
@@ -35,6 +32,9 @@ def creates_cost_reduction_data(
     max_year: int = config.get("cost_year_max"),
 ) -> dict:
     """Creates cost reduction data for a heating system over the years by applying an annual cost reduction rate.
+
+    These values can be used to adjust the installation costs of a heating system based on the cost of
+    installation is a specific reference year.
 
     Args:
         annual_cost_reduction (float): The annual cost reduction rate. Should be a value between 0 and 1.
@@ -55,7 +55,7 @@ def creates_cost_reduction_data(
 
 
 def get_installation_cost(heating_system: str, archetype: str, decile: int = None) -> float:
-    """Gets the cost of a heating system based on the archetype, decile, and installation year.
+    """Gets the cost of a heating system for a specific archetype (and decile where applicable).
 
     Args:
         heating_system (str): heating system.
@@ -86,7 +86,7 @@ def get_installation_cost(heating_system: str, archetype: str, decile: int = Non
     return cost_value
 
 
-def compute_upfront_costs(
+def compute_upfront_cost(
     heating_system: str,
     archetype: str,
     annual_cost_reduction: float,
@@ -94,8 +94,8 @@ def compute_upfront_costs(
     subtract_subsidy: bool,
     decile: int = None,
     subsidy_model: str = None,
-) -> List[float]:
-    """Computes the upfront costs of installing a heating system over its life span.
+) -> float:
+    """Computes the upfront costs of installing a heating system.
 
     Args:
         heating_system (str): heating system.
@@ -115,7 +115,7 @@ def compute_upfront_costs(
         ValueError: If the heating system inputed is not supported or the year is above or equal to 2035.
 
     Returns:
-        List[float]: A list of upfront costs for each year from the start year to 2035.
+        float: Upfront cost of installing a heating system.
     """
     # Get installation cost for a specific heating system, archetype, and decile (where applicable)
     installation_cost = get_installation_cost(heating_system=heating_system, archetype=archetype, decile=decile)
@@ -146,7 +146,7 @@ def compute_total_lifetime_costs(
     decile: int = None,
     subsidy_model: str = None,
 ) -> float:
-    """Computes the total costs of a heating system over a specified number of years.
+    """Computes the lifetime cost of a heating system over its lifetime.
 
     Args:
         heating_system (str): heating system.
@@ -167,7 +167,7 @@ def compute_total_lifetime_costs(
     Returns:
         float: The total costs over the specified number of years.
     """
-    upfront_cost = compute_upfront_costs(
+    upfront_cost = compute_upfront_cost(
         heating_system=heating_system,
         archetype=archetype,
         decile=decile,
@@ -176,7 +176,7 @@ def compute_total_lifetime_costs(
         subtract_subsidy=subtract_subsidy,
         subsidy_model=subsidy_model,
     )
-    maintenance_cost = compute_total_maintenance_costs(
+    maintenance_cost = compute_total_maintenance_cost(
         annual_maintenance_costs=annual_maintenance_costs, life_span=life_span
     )
 
