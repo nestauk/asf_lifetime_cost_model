@@ -122,7 +122,7 @@ def compute_upfront_costs(
 
     if subtract_subsidy and heating_system == "ashp":
         # If the heating system is an ASHP and we want to subtract the subsidy, we need to get the subsidy data
-        subsidy_data = data_getters.get_subsidy_options_data()
+        subsidy_data = data_getters.get_ashp_subsidy_options_data()
         subsidy_value = subsidy_data[subsidy_data["model"] == subsidy_model]["amount"].values[0]
 
         return installation_cost - subsidy_value
