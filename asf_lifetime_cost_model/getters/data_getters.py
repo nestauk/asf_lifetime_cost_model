@@ -246,7 +246,7 @@ def get_levies(price_cap_period: str) -> LevyCollection:
     # Get Ofgem Annex 4 Policy Cost model file
     fileobject = levies_data_getters.download_annex_4(as_fileobject=True)
 
-    # Calculate scaling factor for estimating domestic share of Feed-in Tariff revenue based on total GB electricity supply and exempt supply for Energy Intensive Industries
+    # Calculate scaling factor for estimating domestic share of Feed-in Tariff (FIT) revenue based on total GB electricity supply and exempt supply for Energy Intensive Industries (EII)
     fit_levy = levies.FIT.from_dataframe(
         levies_data_getters.process_data_FIT(fileobject),
         price_cap=price_cap_period,
