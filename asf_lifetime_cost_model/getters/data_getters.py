@@ -38,10 +38,10 @@ def get_ashp_installation_costs() -> pd.DataFrame:
 
 def get_property_heat_demand() -> pd.DataFrame:
     """
-    Get dataframe of average heat demand data from S3.
+    Get dataframe of average heat demand data from S3 for each property archetype.
 
     Returns:
-        pd.DataFrame: Dataframe of average heat demand for each decile in different property archetypes. Deciles are based on ashp installation costs.
+        pd.DataFrame: Dataframe of average heat demand
     """
     return _read_s3_csv_to_dataframe(
         bucket_name="asf-lifetime-cost-model", s3_key="inputs/property_heat_demand.csv"
