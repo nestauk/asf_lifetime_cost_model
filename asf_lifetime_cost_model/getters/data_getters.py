@@ -43,9 +43,7 @@ def get_property_heat_demand() -> pd.DataFrame:
     Returns:
         pd.DataFrame: Dataframe of average heat demand
     """
-    return _read_s3_csv_to_dataframe(
-        bucket_name="asf-lifetime-cost-model", s3_key="inputs/property_heat_demand.csv"
-    )
+    return _read_s3_csv_to_dataframe(bucket_name="asf-lifetime-cost-model", s3_key="inputs/property_heat_demand.csv")
 
 
 def get_desnz_wholesale_price_projections() -> pd.DataFrame:
@@ -85,7 +83,6 @@ def get_desnz_wholesale_price_projections() -> pd.DataFrame:
     # Extract tables for each projection scenario
     projection_scenarios = {}
     for scenario_name, scenario_tab_name in scenario_name_map.items():
-
         # Select tab of interest
         df = all_sheets.get(scenario_tab_name)
 
@@ -93,10 +90,7 @@ def get_desnz_wholesale_price_projections() -> pd.DataFrame:
         df.columns = df.iloc[1]
 
         # Filter for rows of interest
-        df = df[
-            (df["fuel"] == "Electricity (volume weighted)")
-            | (df["fuel"] == "Natural gas")
-        ].reset_index(drop=True)
+        df = df[(df["fuel"] == "Electricity (volume weighted)") | (df["fuel"] == "Natural gas")].reset_index(drop=True)
 
         # Drop redundant columns
         df = df.drop(["coverage", "note"], axis=1)
@@ -107,16 +101,12 @@ def get_desnz_wholesale_price_projections() -> pd.DataFrame:
         projection_scenarios[scenario_name] = df
 
     # Combine individual scenario tables into one dataframe
-    combined_projection_scenarios = pd.concat(
-        projection_scenarios.values(), ignore_index=True
-    )
+    combined_projection_scenarios = pd.concat(projection_scenarios.values(), ignore_index=True)
 
     return combined_projection_scenarios
 
 
-def _create_tariff_objects(
-    payment_method: str, price_cap_period: str
-) -> Tuple[Tariff, Tariff]:
+def _create_tariff_objects(payment_method: str, price_cap_period: str) -> Tuple[Tariff, Tariff]:
     """
     Downloads Ofgem price cap data (Annex 9 file) and creates gas and electricity Tariff objects.
 
@@ -174,9 +164,7 @@ def _create_tariff_objects(
         )
 
     else:
-        raise KeyError(
-            "Please provide a valid payment method (Other Payment Method, PPM or Standard Credit.)"
-        )
+        raise KeyError("Please provide a valid payment method (Other Payment Method, PPM or Standard Credit.)")
 
     fileobject.close()
 
@@ -221,17 +209,13 @@ def get_levies(price_cap_period: str) -> LevyCollection:
     # These are to provide consistent charging bases across all levies when rebalancing
     # Source: https://www.gov.uk/government/statistics/regional-and-local-authority-gas-consumption-statistics
     # Source: https://www.gov.uk/government/statistics/regional-and-local-authority-electricity-consumption-statistics
-    domestic_supply_electricity = (
-        96_517_461  # total domestic electricity consumption in MWh, GB
-    )
-    domestic_supply_gas = (
-        266_505_188  # total domestic gas consumption in MWh, GB, non-weather corrected
-    )
+    domestic_supply_electricity = 96_517_461  # total domestic electricity consumption in MWh, GB
+    domestic_supply_gas = 266_505_188  # total domestic gas consumption in MWh, GB, non-weather corrected
     domestic_customers_gas = 24_605_467  # number of domestic gas meters, GB
-    domestic_customers_electricity = (
-        29_239_936  # number of domestic electricity meters, GB
+    domestic_customers_electricity = 29_239_936  # number of domestic electricity meters, GB
+    total_supply_electricity = (
+        249_044_438  # DESNZ GB total electricity consumption, 2023, all consumption (domestic and non-domestic)
     )
-    total_supply_electricity = 249_044_438  # DESNZ GB total electricity consumption, 2023, all consumption (domestic and non-domestic)
 
     # Store in dictionary
     denominator_values = {
@@ -250,9 +234,7 @@ def get_levies(price_cap_period: str) -> LevyCollection:
         price_cap=price_cap_period,
     )
     fit_exempt_eii_supply = fit_levy.ExemptSupplyEII
-    fit_scaling_factor = domestic_supply_electricity / (
-        total_supply_electricity - fit_exempt_eii_supply
-    )
+    fit_scaling_factor = domestic_supply_electricity / (total_supply_electricity - fit_exempt_eii_supply)
 
     # Calculate scaling factor for estimating domestic share of Network Charging Compensation (NCC) revenue
     ncc_levy = levies.NCC.from_dataframe(
@@ -296,30 +278,23 @@ def get_levies(price_cap_period: str) -> LevyCollection:
             scaling_factor=fit_scaling_factor,
             price_cap=price_cap_period,
         ),
-        levies.NCC.from_dataframe(
-            levies_data_getters.process_data_NCC(fileobject),
-            scaling_factor=ncc_scaling_factor,
-            price_cap=price_cap_period,
-        ),
     ]
-    fileobject.close()
 
     # NCC is a levy that was introduced in price cap period Apr2025-Sep2025
     # If price cap period of interest is before this, the NCC levy introduces nan values
     # that creates problems for LevyCollection calculations
     # Check if NCC has nan revenue
-    ncc_levy = [levy for levy in list_levies if levy.short_name == "ncc"][0]
-    if pd.isna(ncc_levy.revenue):
-        list_levies_ncc_removed = [
-            levy for levy in list_levies if levy.short_name != "ncc"
-        ]
-        levy_collection = levies.LevyCollection(
-            "Policy Costs", "pc", list_levies_ncc_removed, denominator_values
-        )
-    else:
-        levy_collection = levies.LevyCollection(
-            "Policy Costs", "pc", list_levies, denominator_values
-        )
+    ncc_levy = levies.NCC.from_dataframe(
+        levies_data_getters.process_data_NCC(fileobject),
+        scaling_factor=ncc_scaling_factor,
+        price_cap=price_cap_period,
+    )
+    if not pd.isna(ncc_levy.revenue):
+        list_levies.append(ncc_levy)
+
+    fileobject.close()
+
+    levy_collection = levies.LevyCollection("Policy Costs", "pc", list_levies, denominator_values)
 
     return levy_collection
 
@@ -355,9 +330,7 @@ def get_rebalanced_levies(
 
     # Rebalance levies according to supplied denominators (consumption and customer charging base).
     # Note: This is used for internal consistency in rebalancing as different charging base numbers are used across different levies to determine levy rates.
-    levy_collection_for_rebalancing = get_levies(
-        price_cap_period=price_cap_period
-    ).rebalance_to_denominators()
+    levy_collection_for_rebalancing = get_levies(price_cap_period=price_cap_period).rebalance_to_denominators()
 
     # Instantiate a dictionary that hold current electricity/gas and variable/fixed revenue weights for each levy
     # These weights will be modified in the rebalancing process
