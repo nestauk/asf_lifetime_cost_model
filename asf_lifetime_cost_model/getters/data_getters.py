@@ -384,7 +384,7 @@ def get_rebalanced_levies(
 def get_heat_pump_subsidy_options_data() -> pd.DataFrame:
     """Gets dataframe of heat pump subsidy options data from S3.
     There's a column for each year between 2024 and 2035 and each option
-    is provided a line in the dataset. Options include:
+    is provided as a row in the dataset. Options include:
         - "flat"
         - "slow stepdown"
         - "fast stepdown"
