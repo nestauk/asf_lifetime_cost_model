@@ -120,9 +120,10 @@ def get_desnz_wholesale_price_projections(
 
 def get_tariffs(payment_method: str, price_cap_period: str) -> Tuple[Tariff, Tariff]:
     """
-    Create gas and electricity Tariff objects from Ofgem price cap data (Annex 9 file).
+    Downloads Ofgem price cap data (Annex 9 file) and creates gas and electricity Tariff objects.
+    
     A Tariff object is a representation of the rates that are charged against energy consumption.
-    Attributes include fuel type and price cap period interval, and also hold values of each
+    Each tariff object includes attributes such as fuel type and price cap period interval, also holding values of each
     cost component that contributes to the total cost of energy as a standing charge and as a unit cost.
     See full documentation at: https://github.com/nestauk/asf_levies_model/blob/dev/asf_levies_model/tariffs.py
 
