@@ -62,13 +62,18 @@ def get_installation_cost(heating_system: str, archetype: str, decile: int = Non
             Takes "ashp" (for air source heat pump) or "boiler" (for gas boiler).
         archetype (str): Propery archetype
         decile (int, optional): cost decile, only used for air source heat pumps.
+            Takes multiples of 10 between 10 and 90, inclusive.
 
     Raises:
-        ValueError: If the heating system inputed is not supported.
+        ValueError: If the heating system inputed is not supported
+                    or the decile is not a multiple of 10 between 10 and 90.
 
     Returns:
         float: The cost of the heating system for the specified archetype (and decile where applicable).
     """
+    if decile is not None and (decile < 10 or decile > 90 or decile % 10 != 0):
+        raise ValueError("Decile must be a multiple of 10 between 10 and 90, inclusive.")
+
     if heating_system == "ashp":
         costs_data = data_getters.get_ashp_installation_costs()
         cost_value = costs_data[costs_data["archetype_label"] == archetype][f"cost_percentile_{decile}"].iloc[0]
@@ -95,14 +100,16 @@ def compute_upfront_costs(
     Args:
         heating_system (str): heating system.
             Takes "ashp" (for air source heat pump) or "boiler" (for gas boiler).
-        archetype (str): Household archetype
+        archetype (str): Property archetype
+            Takes: TODO: add final list of archetypes.
         decile (int, optional): cost decile, only used for air source heat pumps.
         annual_cost_reduction (float): how much the cost of installing the heating system reduces each year
             in comparison to the previous year.
         installation_year (int): the year in which the heating system is installed.
-                    This should be below 2035.
         subtract_subsidy (bool): whether to subtract the subsidy from the upfront costs.
         subsidy_model (str, optional): The model of the subsidy to be subtracted if applicable.
+            Models include: "flat", "slow stepdown", "fast stepdown", "high", "zero from 2028",
+            "smallest", "no subsidy".
 
     Raises:
         ValueError: If the heating system inputed is not supported or the year is above or equal to 2035.
@@ -145,15 +152,17 @@ def compute_total_lifetime_costs(
         heating_system (str): heating system.
             Takes "ashp" (for air source heat pump) or "boiler" (for gas boiler).
         archetype (str): Property archetype
+            Takes: TODO: add final list of archetypes.
         annual_cost_reduction (float): how much the cost of installing the heating system reduces each year
             in comparison to the previous year.
         installation_year (int): the year in which the heating system is installed.
-                    This should be below 2035.
         annual_maintenance_costs (float): The annual maintenance cost of the heating system.
         life_span (int): Number of years the heating system is assumed to be operational.
         subtract_subsidy (bool): whether to subtract the subsidy from the upfront costs.
         decile (int, optional): cost decile, only used for air source heat pumps.
         subsidy_model (str, optional): The subsidy model to get the subsidy to be subtracted if applicable.
+            Models include: "flat", "slow stepdown", "fast stepdown", "high", "zero from 2028",
+            "smallest", "no subsidy".
 
     Returns:
         float: The total costs over the specified number of years.
