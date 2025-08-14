@@ -19,8 +19,6 @@
 # ### Demonstrating how the data getters work
 
 # %%
-import pandas as pd
-
 import asf_lifetime_cost_model.getters.data_getters as data_getters
 
 # %% [markdown]
@@ -79,7 +77,7 @@ current_gas_tariff.calculate_nil_consumption()  # in £/customer
 # If we want to extract a household's total gas bill (assuming we know their gas consumption) and including VAT:
 
 # %%
-current_gas_tariff.calculate_total_consumption(consumption=2.7, vat=True)
+current_gas_tariff.calculate_total_consumption(consumption=2.7, vat=True) # consumption as annual consumption in MWh
 
 # %% [markdown]
 # **Levies**
@@ -185,10 +183,10 @@ rebelanced_electricity_tariff = current_electricity_tariff.update_policy_costs(
 # We can compare a household's energy bill before and after rebalancing
 
 # %%
-current_gas_tariff.calculate_total_consumption(consumption=2.7, vat=True)
+current_gas_tariff.calculate_total_consumption(consumption=2.7, vat=True) # consumption as annual consumption in MWh
 
 # %%
-rebalanced_gas_tariff.calculate_total_consumption(consumption=2.7, vat=True)
+rebalanced_gas_tariff.calculate_total_consumption(consumption=2.7, vat=True) # consumption as annual consumption in MWh
 
 # %% [markdown]
 # In the example above, the gas bill after rebalancing is higher because we moved some policy costs (RO and FiT) from electricity to gas.
