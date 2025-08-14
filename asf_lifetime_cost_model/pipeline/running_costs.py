@@ -59,17 +59,23 @@ def _get_wholesale_price_projection_series(
     """
 
     # Get DESNZ gas and electricity wholesale price projections data
-    wholesale_prices_data = data_getters.get_desnz_wholesale_price_projections(
-        projection_scenario_names=[projection_scenario]
+    wholesale_prices_data_all_scenarios = (
+        data_getters.get_desnz_wholesale_price_projections()
     )
+
+    # Slice data for projection scenario of interest only
+    wholesale_prices_data = wholesale_prices_data_all_scenarios[
+        wholesale_prices_data_all_scenarios["projection_scenario"]
+        == projection_scenario
+    ]
 
     if projection_scenario == "reference":
         # Modify data so that wholesale prices are held constant at 2040 levels from 2041 to 2050 for reference scenario
         for year in range(2041, 2051):
             wholesale_prices_data.loc[
-                wholesale_prices_data["projection scenario"] == "reference", year
+                wholesale_prices_data["projection_scenario"] == "reference", year
             ] = wholesale_prices_data.loc[
-                wholesale_prices_data["projection scenario"] == "reference", 2040
+                wholesale_prices_data["projection_scenario"] == "reference", 2040
             ]
     elif (projection_scenario == "low fossil fuel prices") | (
         projection_scenario == "high fossil fuel prices"
@@ -77,20 +83,20 @@ def _get_wholesale_price_projection_series(
         # Modify dataset so that wholesale prices are held constant at 2031 levels from 2032 to 2050 for low and high fossil fuel prices scenarios
         for year in range(2032, 2051):
             wholesale_prices_data.loc[
-                wholesale_prices_data["projection scenario"]
+                wholesale_prices_data["projection_scenario"]
                 == "low fossil fuel prices",
                 year,
             ] = wholesale_prices_data.loc[
-                wholesale_prices_data["projection scenario"]
+                wholesale_prices_data["projection_scenario"]
                 == "low fossil fuel prices",
                 2031,
             ]
             wholesale_prices_data.loc[
-                wholesale_prices_data["projection scenario"]
+                wholesale_prices_data["projection_scenario"]
                 == "high fossil fuel prices",
                 year,
             ] = wholesale_prices_data.loc[
-                wholesale_prices_data["projection scenario"]
+                wholesale_prices_data["projection_scenario"]
                 == "high fossil fuel prices",
                 2031,
             ]
@@ -133,7 +139,6 @@ def _create_energy_cost_time_series(
     standing_charge_time_series = {}
 
     for year, tariff in tariff_time_series.items():
-
         # Cost component to broader category mapping
         tariff_cost_components_category_map = {
             "nil": {
@@ -192,7 +197,6 @@ def _create_energy_cost_time_series(
         # Look up wholesale price projection for year
         # But do not replace if year is year of current price cap period
         if year != tariff.price_cap_period.left.year:
-
             if fuel_type == "gas":
                 # Convert p/therm to p/kWh
                 therm_to_kwh_conversion = 29.31
