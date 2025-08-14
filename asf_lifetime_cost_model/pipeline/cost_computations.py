@@ -86,12 +86,37 @@ def get_installation_cost(heating_system: str, archetype: str, decile: int = Non
     return cost_value
 
 
+def get_ashp_subsidy_value(subsidy_model: str, installation_year: int) -> float:
+    """Gets the subsidy value for a specific subsidy model.
+
+    Args:
+        subsidy_model (str): The model of the subsidy.
+            Models include: "flat", "slow stepdown", "fast stepdown", "high", "zero from 2028",
+            "smallest", "no subsidy".
+        installation_year (int): The year in which the heating system is installed.
+
+    Raises:
+        ValueError: If the subsidy model is not supported.
+
+    Returns:
+        float: The subsidy value for the specified model.
+    """
+    supported_models = config.get("ashp_subsidy_options")
+
+    if subsidy_model not in supported_models:
+        raise ValueError(f"Unsupported subsidy model: {subsidy_model}. Supported models are: {supported_models}")
+
+    subsidy_data = data_getters.get_ashp_subsidy_options_data()
+    subsidy_value = subsidy_data[subsidy_data["model"] == subsidy_model][str(installation_year)].iloc[0]
+
+    return subsidy_value
+
+
 def compute_upfront_cost(
     heating_system: str,
     archetype: str,
     annual_cost_reduction: float,
     installation_year: int,
-    subtract_subsidy: bool,
     decile: int = None,
     subsidy_model: str = None,
 ) -> float:
@@ -106,7 +131,6 @@ def compute_upfront_cost(
         annual_cost_reduction (float): how much the cost of installing the heating system reduces each year
             in comparison to the previous year.
         installation_year (int): the year in which the heating system is installed.
-        subtract_subsidy (bool): whether to subtract the subsidy from the upfront costs.
         subsidy_model (str, optional): The model of the subsidy to be subtracted if applicable.
             Models include: "flat", "slow stepdown", "fast stepdown", "high", "zero from 2028",
             "smallest", "no subsidy".
@@ -125,11 +149,8 @@ def compute_upfront_cost(
 
     installation_cost = installation_cost * cost_reduction_value
 
-    if subtract_subsidy and heating_system == "ashp":
-        # If the heating system is an ASHP and we want to subtract the subsidy, we need to get the subsidy data
-        subsidy_data = data_getters.get_ashp_subsidy_options_data()
-        subsidy_value = subsidy_data[subsidy_data["model"] == subsidy_model][str(installation_year)].iloc[0]
-
+    if heating_system == "ashp":
+        subsidy_value = get_ashp_subsidy_value(subsidy_model=subsidy_model, installation_year=installation_year)
         return installation_cost - subsidy_value
 
     return installation_cost
@@ -142,9 +163,8 @@ def compute_total_lifetime_costs(
     installation_year: int,
     annual_maintenance_costs: float,
     life_span: int,
-    subtract_subsidy: bool,
+    subsidy_model: str,
     decile: int = None,
-    subsidy_model: str = None,
 ) -> float:
     """Computes the lifetime cost of a heating system over its lifetime.
 
@@ -158,7 +178,6 @@ def compute_total_lifetime_costs(
         installation_year (int): the year in which the heating system is installed.
         annual_maintenance_costs (float): The annual maintenance cost of the heating system.
         life_span (int): Number of years the heating system is assumed to be operational.
-        subtract_subsidy (bool): whether to subtract the subsidy from the upfront costs.
         decile (int, optional): cost decile, only used for air source heat pumps.
         subsidy_model (str, optional): The subsidy model to get the subsidy to be subtracted if applicable.
             Models include: "flat", "slow stepdown", "fast stepdown", "high", "zero from 2028",
@@ -173,7 +192,6 @@ def compute_total_lifetime_costs(
         decile=decile,
         annual_cost_reduction=annual_cost_reduction,
         installation_year=installation_year,
-        subtract_subsidy=subtract_subsidy,
         subsidy_model=subsidy_model,
     )
     maintenance_cost = compute_total_maintenance_cost(

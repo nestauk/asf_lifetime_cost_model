@@ -10,7 +10,6 @@ cost_computations.compute_upfront_cost(
     archetype="pre_1950_semi_terraced_house_5_rooms",
     annual_cost_reduction=0.01,
     installation_year=2026,
-    subtract_subsidy=True,
     decile=50,
     subsidy_model="flat",
 )
@@ -24,7 +23,6 @@ cost_computations.compute_upfront_cost(
     archetype="pre_1950_semi_terraced_house_5_rooms",
     annual_cost_reduction=0.01,
     installation_year=2026,
-    subtract_subsidy=False,
     decile=50,
     subsidy_model="flat",
 )
@@ -37,11 +35,7 @@ cost_computations.compute_upfront_cost(
 
 # %%
 cost_computations.compute_upfront_cost(
-    heating_system="boiler",
-    archetype="bungalows pre-1950",
-    annual_cost_reduction=0.01,
-    installation_year=2026,
-    subtract_subsidy=False,
+    heating_system="boiler", archetype="bungalows pre-1950", annual_cost_reduction=0.01, installation_year=2026
 )
 
 # %% [markdown]
@@ -60,7 +54,6 @@ cost_computations.compute_total_lifetime_costs(
     decile=50,
     annual_cost_reduction=0.01,
     installation_year=2026,
-    subtract_subsidy=True,
     subsidy_model="flat",
     annual_maintenance_costs=80,
     life_span=15,
@@ -76,7 +69,6 @@ cost_computations.compute_total_lifetime_costs(
     decile=50,
     annual_cost_reduction=0.01,
     installation_year=2026,
-    subtract_subsidy=True,
     subsidy_model="flat",
     annual_maintenance_costs=80,
     life_span=15,
@@ -92,7 +84,6 @@ cost_computations.compute_total_lifetime_costs(
     decile=50,
     annual_cost_reduction=0.01,
     installation_year=2026,
-    subtract_subsidy=True,
     subsidy_model="flat",
     annual_maintenance_costs=80,
     life_span=15,
