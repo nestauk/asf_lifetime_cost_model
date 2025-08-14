@@ -56,7 +56,7 @@ def get_desnz_wholesale_price_projections(
     
     The resulting DataFrame contains one column per year (with price data) and columns containing additional information such as: metric, fuel, units and projection_scenario
 
-    Possible scenarios include:
+    Scenarios for which data is available include:
     - "reference"
     - "low fossil fuel prices" (reference assumptions with lower fossil fuel prices)
     - "high fossil fuel prices" (reference assumptions with higher fossil fuel prices)
