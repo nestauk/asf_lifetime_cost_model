@@ -400,3 +400,16 @@ def get_subsidy_options_data() -> pd.DataFrame:
         bucket_name="asf-lifetime-cost-model",
         s3_key="inputs/subsidy_options.csv",
     )
+
+def get_gas_boiler_installation_costs() -> pd.DataFrame:
+    """Gets dataframe of gas boiler costs from S3.
+
+    For reference, the numbers are taken from the NESO heating tech options project (2025).
+
+    Returns:
+        pd.DataFrame: Dataframe of boiler costs for different property sizes.
+    """
+    return _read_s3_csv_to_dataframe(
+        bucket_name="asf-lifetime-cost-model",
+        s3_key="inputs/gas_boiler_installation_costs.csv",
+    )
