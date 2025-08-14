@@ -19,7 +19,7 @@ from asf_levies_model.summary import create_scenario_weights_dict
 
 from asf_lifetime_cost_model.getters.getter_utils import (
     _read_s3_csv_to_dataframe,
-    _read_excel_to_dataframe,
+    _read_excel_to_dataframe_or_dict,
 )
 
 
@@ -48,12 +48,10 @@ def get_property_heat_demand() -> pd.DataFrame:
     )
 
 
-def get_desnz_wholesale_price_projections(
-    projection_scenario_names: list[str],
-) -> pd.DataFrame:
+def get_desnz_wholesale_price_projections() -> pd.DataFrame:
     """
     Downloads DESNZ wholesale price projections and creates dataframe containing price projections for natural gas and electricity from 2001 to 2050 (inflation-adjusted to 2023 prices) under different scenarios.
-    
+
     The resulting DataFrame contains one column per year (with price data) and columns containing additional information such as: metric, fuel, units and projection_scenario
 
     Scenarios for which data is available include:
@@ -64,8 +62,6 @@ def get_desnz_wholesale_price_projections(
     - "high economic growth" (reference assumptions with higher economic growth)
     - "existing policies only" (reference assumptions, but excluding planned policies)
 
-    Args:
-        projection_scenario_names (list[str]): List of scenario names of interest, valid scenario names as listed above.
 
     Returns:
         pd.DataFrame: Dataframe containing time-series data for price projections for natural gas and electricity.
@@ -86,12 +82,12 @@ def get_desnz_wholesale_price_projections(
         "existing policies only": "Existing",
     }
 
-    # Extract tables for each projection scenario specified
+    # Extract tables for each projection scenario
     projection_scenarios = {}
-    for scenario in projection_scenario_names:
+    for scenario_name, scenario_tab_name in scenario_name_map.items():
 
         # Select tab of interest
-        df = all_sheets.get(scenario_name_map.get(scenario))
+        df = all_sheets.get(scenario_tab_name)
 
         # Header row
         df.columns = df.iloc[1]
@@ -106,9 +102,9 @@ def get_desnz_wholesale_price_projections(
         df = df.drop(["coverage", "note"], axis=1)
 
         # Look up scenario name to add to dataframe
-        df["projection_scenario"] = scenario
+        df["projection_scenario"] = scenario_name
 
-        projection_scenarios[scenario] = df
+        projection_scenarios[scenario_name] = df
 
     # Combine individual scenario tables into one dataframe
     combined_projection_scenarios = pd.concat(
@@ -118,10 +114,12 @@ def get_desnz_wholesale_price_projections(
     return combined_projection_scenarios
 
 
-def _create_tariff_objects(payment_method: str, price_cap_period: str) -> Tuple[Tariff, Tariff]:
+def _create_tariff_objects(
+    payment_method: str, price_cap_period: str
+) -> Tuple[Tariff, Tariff]:
     """
     Downloads Ofgem price cap data (Annex 9 file) and creates gas and electricity Tariff objects.
-    
+
     A Tariff object is a representation of the rates that are charged against energy consumption.
     Each tariff object includes attributes such as fuel type and price cap period interval, also holding values of each
     cost component that contributes to the total cost of energy as a standing charge and as a unit cost.

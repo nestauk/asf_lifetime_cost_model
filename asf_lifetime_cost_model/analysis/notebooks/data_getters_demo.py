@@ -10,7 +10,7 @@
 #       format_version: '1.3'
 #       jupytext_version: 1.11.2
 #   kernelspec:
-#     display_name: asf-lifetime-cost-model (3.13.2)
+#     display_name: .venv
 #     language: python
 #     name: python3
 # ---
@@ -44,13 +44,7 @@ data_getters.get_property_heat_demand()
 # - Read from DESNZ website
 
 # %%
-data_getters.get_desnz_wholesale_price_projections(
-    projection_scenario_names=[
-        "reference",
-        "low fossil fuel prices",
-        "high fossil fuel prices",
-    ]
-)
+data_getters.get_desnz_wholesale_price_projections()
 
 # %% [markdown]
 # **Energy price cap data**
