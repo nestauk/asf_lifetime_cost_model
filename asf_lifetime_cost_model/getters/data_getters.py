@@ -25,10 +25,10 @@ from asf_lifetime_cost_model.getters.getter_utils import (
 
 def get_ashp_installation_costs() -> pd.DataFrame:
     """
-    Get dataframe of air-source heat pump installations costs from S3.
+    Get dataframe of inflation-adjusted air-source heat pump installations costs for each decile in different property archetypes from S3.
 
     Returns:
-        pd.DataFrame: Dataframe of air-source heat pump installation costs for each decile in different property archetypes.
+        pd.DataFrame: Dataframe of air-source heat pump installation costs
     """
     return _read_s3_csv_to_dataframe(
         bucket_name="asf-lifetime-cost-model",
