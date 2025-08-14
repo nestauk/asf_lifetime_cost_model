@@ -59,4 +59,5 @@ levy_rebalancing_options:
     "remove all electricity levies to taxation",
   ]
 
-installation_year_max: 2035
+cost_data_reference_year: 2023 # reference year for ashp cost data
+cost_year_max: 2035
