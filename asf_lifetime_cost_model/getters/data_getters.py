@@ -1,5 +1,6 @@
 """Data getters for inputs into lifetime cost calculations including:
 - inflation adjusted air source heat pump installation costs per decile and property archetype
+- air source heat pump subsidy options data
 - annual heat demand for each property archetype
 - DESNZ gas and electricity wholesale price projections for natural gas and electricity (2023-2050)
 - Ofgem energy price cap
@@ -388,3 +389,24 @@ def get_rebalanced_levies(
     )
 
     return rebalanced_levy_collection
+
+def get_ashp_subsidy_options_data() -> pd.DataFrame:
+    """Gets dataframe of air source heat pump subsidy options data from S3.
+    There's a column for each year between 2024 and 2035 and each option
+    is provided as a row in the dataset. Options include:
+        - "flat"
+        - "slow stepdown"
+        - "fast stepdown"
+        - "high"
+        - "zero from 2028"
+        - "smallest"
+        - "no subsidy"
+    For each pair of year and option, the value is the amount in GBP for subsidising the cost of getting an air source heat pump in that year.
+    
+    Returns:
+        pd.DataFrame: Dataframe of subsidy options
+    """
+    return _read_s3_csv_to_dataframe(
+        bucket_name="asf-lifetime-cost-model",
+        s3_key="inputs/ashp_subsidy_options.csv",
+    )
