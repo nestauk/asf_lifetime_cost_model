@@ -85,7 +85,7 @@ def get_installation_cost(heating_system: str, archetype: str, decile: int = Non
         costs_data = data_getters.get_gas_boiler_installation_costs()
         cost_value = costs_data[(costs_data["archetype_label"] == archetype)]["cost"].iloc[0]
     else:
-        raise ValueError(f"Unsupported heating system: {heating_system}")
+        raise ValueError(f"Unsupported heating system: {heating_system}. Supported heating systems are {list(config.get("life_span_default").keys())}"
 
     return cost_value
 
