@@ -214,8 +214,18 @@ def compute_total_lifetime_costs(
     Returns:
         float: The total costs over the specified number of years.
     """
-    if (heating_system != "ashp") and (subsidy_model_or_input_values != "no subsidy"):
+    if (heating_system == "boiler") and (subsidy_model_or_input_values != "no subsidy"):
         raise ValueError("Subsidy model is only applicable for air source heat pumps. Choose 'no subsidy'.")
+
+    if (
+        (heating_system == "ashp")
+        and type(subsidy_model_or_input_values) is str
+        and subsidy_model_or_input_values not in config.get("ashp_subsidy_options")
+    ):
+        supported_models = config.get("ashp_subsidy_options")
+        raise ValueError(
+            f"Unsupported subsidy model: {subsidy_model_or_input_values}. Supported models are: {supported_models}."
+        )
 
     upfront_cost = compute_upfront_cost(
         heating_system=heating_system,
