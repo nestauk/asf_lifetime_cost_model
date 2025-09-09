@@ -16,17 +16,18 @@ from asf_lifetime_cost_model import config
 from asf_lifetime_cost_model.getters import data_getters
 
 
-def compute_total_maintenance_cost(annual_maintenance_costs: float, life_span: int) -> float:
-    """Computes the total maintenance cost for technology given the annual maintenance cost and the expected lifetime.
+def compute_total_maintenance_cost(maintenance_cost: float, maintenance_frequency_per_year: float, life_span: int) -> float:
+    """Computes the total maintenance cost for technology given the cost of each maintenance session, number of times the heating system is serviced each year and the expected lifetime.
 
     Args:
-        annual_maintenance_costs (float): The annual maintenance cost of the heating system.
+        maintenance_cost (float): The cost of one maintenance servicing session for heating system.
+        maintenance_frequency_per_year (float): Average number of times the heating system is serviced each year. 
         life_span (int): Number of years the heating system is assumed to be operational.
 
     Returns:
         float: The total maintenance costs over the specified number of years.
     """
-    return annual_maintenance_costs * life_span
+    return maintenance_cost * maintenance_frequency_per_year * life_span
 
 
 def creates_cost_reduction_data(
