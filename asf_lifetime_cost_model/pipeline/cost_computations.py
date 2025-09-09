@@ -149,7 +149,7 @@ def compute_upfront_cost(
     # Get installation cost for a specific heating system, archetype, and decile (where applicable)
     installation_cost = get_installation_cost(heating_system=heating_system, archetype=archetype, decile=decile)
 
-    cost_reduction_data = creates_cost_reduction_data(annual_cost_reduction=annual_cost_reduction)
+    cost_reduction_data = create_cost_reduction_data(annual_cost_reduction=annual_cost_reduction)
     cost_reduction_value = cost_reduction_data[installation_year]
 
     installation_cost = installation_cost * cost_reduction_value
