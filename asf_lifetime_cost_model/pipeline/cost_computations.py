@@ -30,7 +30,7 @@ def compute_total_maintenance_cost(maintenance_cost: float, maintenance_frequenc
     return maintenance_cost * maintenance_frequency_per_year * life_span
 
 
-def creates_cost_reduction_data(
+def create_cost_reduction_data(
     annual_cost_reduction: float,
     reference_year: int = config.get("cost_data_reference_year"),
     max_year: int = config.get("cost_year_max"),
