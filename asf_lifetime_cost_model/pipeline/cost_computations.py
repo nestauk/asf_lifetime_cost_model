@@ -129,7 +129,7 @@ def compute_upfront_cost(
     annual_cost_reduction: float,
     purchase_year: int,
     decile: int = None,
-    subsidy_model_or_value: Union[str, float] = 0,
+    subsidy_model_or_input_values: Union[str, dict] = "flat",
 ) -> float:
     """Computes the upfront costs of installing a heating system.
 
@@ -142,8 +142,8 @@ def compute_upfront_cost(
         annual_cost_reduction (float): how much the cost of installing the heating system reduces each year
             in comparison to the previous year.
         purchase_year (int): the year in which the heating system is installed.
-        subsidy_model_or_value (Union[str, float], optional): The subsidy model to get the subsidy to be subtracted
-            OR a fixed subsidy value.
+        subsidy_model_or_input_values (Union[str, dict], optional): The subsidy model to get the subsidy
+            to be subtracted OR a dictionary of subsidy value for each year.
             Models include: "flat", "slow stepdown", "fast stepdown", "high", "zero from 2028",
             "smallest", "no subsidy".
 
@@ -169,11 +169,11 @@ def compute_upfront_cost(
 
     installation_cost = installation_cost * cost_reduction_value
 
-    if (type(subsidy_model_or_value) is str) and (heating_system == "ashp"):
-        subsidy_value = get_ashp_subsidy_value(subsidy_model=subsidy_model_or_value, purchase_year=purchase_year)
+    if (type(subsidy_model_or_input_values) is str) and (heating_system == "ashp"):
+        subsidy_value = get_ashp_subsidy_value(subsidy_model=subsidy_model_or_input_values, purchase_year=purchase_year)
         return installation_cost - subsidy_value
     else:  # float provided
-        return installation_cost - subsidy_model_or_value
+        return installation_cost - subsidy_model_or_input_values[purchase_year]
 
 
 def compute_total_lifetime_costs(
@@ -201,8 +201,8 @@ def compute_total_lifetime_costs(
         maintenance_frequency_per_year (float): Average number of times the heating system is serviced each year.
         life_span (int): Number of years the heating system is assumed to be operational.
         decile (int, optional): cost decile, only used for air source heat pumps.
-        subsidy_model_or_value (str): The subsidy model to get the subsidy to be subtracted
-            OR a fixed subsidy value.
+        subsidy_model_or_value (str): The subsidy model to get the subsidy
+            to be subtracted OR a fixed subsidy value.
             Models include: "flat", "slow stepdown", "fast stepdown", "high", "zero from 2028",
             "smallest", "no subsidy".
 
