@@ -90,9 +90,8 @@ def get_installation_cost(heating_system: str, archetype: str, decile: int = Non
         costs_data = data_getters.get_gas_boiler_installation_costs()
         cost_value = costs_data[(costs_data["archetype_label"] == archetype)]["cost"].iloc[0]
     else:
-        supported_systems = list(config.get("life_span_default").keys())
         raise ValueError(
-            f"Unsupported heating system: {heating_system}. Supported heating systems are {supported_systems}"
+            f"Unsupported heating system: {heating_system}. Supported heating systems are `ashp` and `boiler`."
         )
 
     return cost_value
@@ -154,6 +153,14 @@ def compute_upfront_cost(
     Returns:
         float: Upfront cost of installing a heating system.
     """
+    if purchase_year >= config.get("cost_year_max"):
+        raise ValueError(f"Purchase year must be before {config.get('cost_year_max')}.")
+
+    if heating_system not in ["ashp", "boiler"]:
+        raise ValueError(
+            f"Unsupported heating system: {heating_system}. Supported heating systems are `ashp` and `boiler`."
+        )
+
     # Get installation cost for a specific heating system, archetype, and decile (where applicable)
     installation_cost = get_installation_cost(heating_system=heating_system, archetype=archetype, decile=decile)
 
