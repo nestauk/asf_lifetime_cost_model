@@ -60,3 +60,5 @@ levy_rebalancing_options:
   ]
 
 installation_year_max: 2035
+
+therm_to_kwh_conversion: 29.31 # unit conversion used for processing DESNZ wholesale price projection values for gas
