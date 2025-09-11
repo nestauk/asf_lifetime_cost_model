@@ -32,17 +32,23 @@ def get_property_heat_demand(archetype: str) -> float:
 
     # If unrecognised archetype is provided
     if archetype not in archetypes:
-        raise ValueError(f"Unsupported property archetype: {archetype}. Supported archetypes are: {archetypes}")
+        raise ValueError(
+            f"Unsupported property archetype: {archetype}. Supported archetypes are: {archetypes}"
+        )
 
     # Extract annual heat demand of selected property archetype
-    property_heat_demand = heat_demand_data.loc[heat_demand_data["archetype_label"] == archetype, "heat_demand"].iloc[
+    property_heat_demand = heat_demand_data.loc[
+        heat_demand_data["archetype_label"] == archetype, "heat_demand"
+    ].iloc[
         0
     ]  # kWh/year
 
     return property_heat_demand
 
 
-def get_wholesale_price_projection_series(fuel_type: str, projection_scenario: str) -> pd.DataFrame:
+def get_wholesale_price_projection_series(
+    fuel_type: str, projection_scenario: str
+) -> pd.DataFrame:
     """
     Gets a slice of the DESNZ wholesale price projection dataframe by filtering on given fuel type (electricity or gas) and projection scenario name.
     This function also applies price modifications for the "reference", "low fossil fuel prices" and
@@ -61,39 +67,44 @@ def get_wholesale_price_projection_series(fuel_type: str, projection_scenario: s
     """
 
     # Get DESNZ gas and electricity wholesale price projections data
-    wholesale_prices_data_all_scenarios = data_getters.get_desnz_wholesale_price_projections()
+    wholesale_prices_data_all_scenarios = (
+        data_getters.get_desnz_wholesale_price_projections()
+    )
 
     # Slice data for projection scenario of interest only
     wholesale_prices_data = wholesale_prices_data_all_scenarios[
-        wholesale_prices_data_all_scenarios["projection_scenario"] == projection_scenario
+        wholesale_prices_data_all_scenarios["projection_scenario"]
+        == projection_scenario
     ]
 
     if projection_scenario == "reference":
         # Modify data so that wholesale prices are held constant at 2040 levels from 2041 to 2050 for reference scenario
-        for year in range(2041, 2051):
-            wholesale_prices_data.loc[
-                wholesale_prices_data["projection_scenario"] == projection_scenario,
-                year,
-            ] = wholesale_prices_data.loc[
-                wholesale_prices_data["projection_scenario"] == projection_scenario,
-                2040,
-            ]
-    elif (projection_scenario == "low fossil fuel prices") | (projection_scenario == "high fossil fuel prices"):
+        wholesale_prices_data.loc[
+            wholesale_prices_data["projection_scenario"] == projection_scenario,
+            range(2032, 2051),
+        ] = wholesale_prices_data.loc[
+            wholesale_prices_data["projection_scenario"] == projection_scenario,
+            2040,
+        ]
+    elif (projection_scenario == "low fossil fuel prices") | (
+        projection_scenario == "high fossil fuel prices"
+    ):
         # Modify data so that wholesale prices are held constant at 2031 levels from 2032 to 2050 for low and high fossil fuel prices scenarios
-        for year in range(2032, 2051):
-            wholesale_prices_data.loc[
-                wholesale_prices_data["projection_scenario"] == projection_scenario,
-                year,
-            ] = wholesale_prices_data.loc[
-                wholesale_prices_data["projection_scenario"] == projection_scenario,
-                2031,
-            ]
+        wholesale_prices_data.loc[
+            :,
+            range(2032, 2051),
+        ] = wholesale_prices_data.loc[
+            :,
+            2031,
+        ]
     else:
         raise ValueError(
             f"Unsupported projection scenario name: {projection_scenario}. Supported projection scenarios are: 'reference', 'low fossil fuel prices', 'high fossil fuel prices'."
         )
 
-    wholesale_prices_series = wholesale_prices_data[wholesale_prices_data["fuel"].str.contains(fuel_type, case=False)]
+    wholesale_prices_series = wholesale_prices_data[
+        wholesale_prices_data["fuel"].str.contains(fuel_type, case=False)
+    ]
 
     return wholesale_prices_series
 
@@ -175,7 +186,9 @@ def create_energy_cost_time_series(
             f"{cat} ({type})": np.nansum(
                 [
                     component
-                    for component, category in tariff_cost_components_category_map.get(type).items()
+                    for component, category in tariff_cost_components_category_map.get(
+                        type
+                    ).items()
                     if category == cat
                 ]
             )
@@ -190,21 +203,39 @@ def create_energy_cost_time_series(
                 # Convert p/therm to p/kWh
                 therm_to_kwh_conversion = config.get("therm_to_kwh_conversion")
 
-                wholesale_projection = (wholesale_prices_series.loc[:, year].iloc[0]) / therm_to_kwh_conversion  # p/kWh
+                wholesale_projection = (
+                    wholesale_prices_series.loc[:, year].iloc[0]
+                ) / therm_to_kwh_conversion  # p/kWh
 
             elif fuel_type == "electricity":
-                wholesale_projection = wholesale_prices_series.loc[:, year].iloc[0]  # p/kWh
+                wholesale_projection = wholesale_prices_series.loc[:, year].iloc[
+                    0
+                ]  # p/kWh
 
             else:
-                raise ValueError(f"Unsupported fuel type: {fuel_type}. Supported fuel types are: gas, electricity.")
+                raise ValueError(
+                    f"Unsupported fuel type: {fuel_type}. Supported fuel types are: gas, electricity."
+                )
 
             # Replace wholesale component with projection
-            tariff_cost_categories["wholesale (variable)"] = wholesale_projection * 10  # convert p/kWh to £/MWh
+            tariff_cost_categories["wholesale (variable)"] = (
+                wholesale_projection * 10
+            )  # convert p/kWh to £/MWh
 
         # Compute total unit cost and standing charge for the year
-        unit_cost = np.nansum([value for category, value in tariff_cost_categories.items() if "(variable)" in category])
+        unit_cost = np.nansum(
+            [
+                value
+                for category, value in tariff_cost_categories.items()
+                if "(variable)" in category
+            ]
+        )
         standing_charge = np.nansum(
-            [value for category, value in tariff_cost_categories.items() if "(nil)" in category]
+            [
+                value
+                for category, value in tariff_cost_categories.items()
+                if "(nil)" in category
+            ]
         )
 
         # Add year-cost key-value pair to time series dictionary
@@ -244,10 +275,9 @@ def compute_running_cost_time_series(
         include_standing_charge (bool): Whether annual standing charge should be included in running costs.
         levy_rebalancing (bool): Whether a levy rebalancing scenario is to be applied.
         levies_to_rebalance (Optional[list[str]], optional): List containing short names of levies to be rebalanced with provided weights. Defaults to None.
-        levy_rebalancing_weights (Optional[dict[str, float]], optional): Dictionary containing rebalancing weights, where
-            keys are "electricity_weight", "gas_weight", "tax_weight", "fixed_electricity_weight",
-            "variable_electricity_weight", "fixed_gas_weight" and values are revenue propoertions [0, 1].
-            Defaults to None.
+        levy_rebalancing_weights (Optional[dict[str, float]], optional): Dictionary containing rebalancing weights to be applied to all levies provided in
+            levies_to_rebalance, where keys are "electricity_weight", "gas_weight", "tax_weight", "fixed_electricity_weight", "variable_electricity_weight",
+            "fixed_gas_weight" and values are revenue propoertions [0, 1]. Defaults to None.
         include_vat (bool): Whether 5% VAT is included in energy prices. Defaults to True.
 
     Returns:
@@ -269,13 +299,18 @@ def compute_running_cost_time_series(
 
     # Apply levy rebalancing scenario to latest policy costs
     if levy_rebalancing:
+        # Rebalancing weights are applied to all provided levies
         rebalanced_levies = data_getters.get_rebalanced_levies(
             levies_to_rebalance=levies_to_rebalance,
             electricity_weight=levy_rebalancing_weights["electricity_weight"],
             gas_weight=levy_rebalancing_weights["gas_weight"],
             tax_weight=levy_rebalancing_weights["tax_weight"],
-            variable_electricity_weight=levy_rebalancing_weights["variable_electricity_weight"],
-            fixed_electricity_weight=levy_rebalancing_weights["fixed_electricity_weight"],
+            variable_electricity_weight=levy_rebalancing_weights[
+                "variable_electricity_weight"
+            ],
+            fixed_electricity_weight=levy_rebalancing_weights[
+                "fixed_electricity_weight"
+            ],
             variable_gas_weight=levy_rebalancing_weights["variable_gas_weight"],
             fixed_gas_weight=levy_rebalancing_weights["fixed_gas_weight"],
             price_cap_period="LATEST",
@@ -289,7 +324,9 @@ def compute_running_cost_time_series(
     # Create a dictionary of gas and electricity tariffs for each year of operation
     # Note we are using the same tariff for each year in the future
     gas_tariff_time_series = {year: gas_tariff for year in years_of_operation}
-    electricity_tariff_time_series = {year: electricity_tariff for year in years_of_operation}
+    electricity_tariff_time_series = {
+        year: electricity_tariff for year in years_of_operation
+    }
 
     ### Get wholesale price projections ###
 
@@ -305,17 +342,21 @@ def compute_running_cost_time_series(
     # replace the wholesale costs with the projection for that year
 
     # Gas costs
-    gas_unit_cost_time_series, gas_standing_charge_time_series = create_energy_cost_time_series(
-        tariff_time_series=gas_tariff_time_series,
-        fuel_type="gas",
-        wholesale_prices_series=wholesale_prices_series_df,
+    gas_unit_cost_time_series, gas_standing_charge_time_series = (
+        create_energy_cost_time_series(
+            tariff_time_series=gas_tariff_time_series,
+            fuel_type="gas",
+            wholesale_prices_series=wholesale_prices_series_df,
+        )
     )
 
     # Electricity costs
-    electricity_unit_cost_time_series, electricity_standing_charge_time_series = create_energy_cost_time_series(
-        tariff_time_series=electricity_tariff_time_series,
-        fuel_type="electricity",
-        wholesale_prices_series=wholesale_prices_series_df,
+    electricity_unit_cost_time_series, electricity_standing_charge_time_series = (
+        create_energy_cost_time_series(
+            tariff_time_series=electricity_tariff_time_series,
+            fuel_type="electricity",
+            wholesale_prices_series=wholesale_prices_series_df,
+        )
     )
 
     if include_vat:
@@ -340,9 +381,13 @@ def compute_running_cost_time_series(
                 running_costs_time_series[year] += gas_standing_charge_time_series[year]
 
         else:  # fuel_type is electricity
-            running_costs_time_series[year] = electricity_unit_cost_time_series[year] * (energy_demand / 1_000)
+            running_costs_time_series[year] = electricity_unit_cost_time_series[
+                year
+            ] * (energy_demand / 1_000)
 
             if include_standing_charge:
-                running_costs_time_series[year] += electricity_standing_charge_time_series[year]
+                running_costs_time_series[
+                    year
+                ] += electricity_standing_charge_time_series[year]
 
     return running_costs_time_series
