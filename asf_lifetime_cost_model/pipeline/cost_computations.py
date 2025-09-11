@@ -311,7 +311,7 @@ def create_annualised_cost_time_series(
     Args:
         cost_value (float): The total cost value to be annualised.
         life_span (int): Number of years the heating system is assumed to be operational.
-        purchase_year (int): The year in which the heating system is installed.
+        purchase_year (int): The year in which the heating system is purchased and installed.
 
     Returns:
         dict: A dictionary with years as keys and cost values as values.
