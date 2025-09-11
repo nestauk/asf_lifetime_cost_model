@@ -104,7 +104,7 @@ def get_ashp_subsidy_value(subsidy_model: str, purchase_year: int) -> float:
         subsidy_model (str): The model of the subsidy.
             Models include: "flat", "slow stepdown", "fast stepdown", "high", "zero from 2028",
             "smallest", "no subsidy".
-        purchase_year (int): The year in which the heating system is installed.
+        purchase_year (int): The year in which the heating system is purchased and installed.
 
     Raises:
         ValueError: If the subsidy model is not supported.
@@ -288,7 +288,7 @@ def create_annualised_cost_time_series(cost_value: float, life_span: int, purcha
     Args:
         cost_value (float): The total cost value to be annualised.
         life_span (int): Number of years the heating system is assumed to be operational.
-        purchase_year (int): The year in which the heating system is installed.
+        purchase_year (int): The year in which the heating system is purchased and installed.
 
     Returns:
         dict: A dictionary with years as keys and cost values as values.
