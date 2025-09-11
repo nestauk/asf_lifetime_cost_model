@@ -114,7 +114,7 @@ def get_ashp_subsidy_value(subsidy_model: str, purchase_year: int) -> float:
         subsidy_model (str): The model of the subsidy.
             Models include: "flat", "slow stepdown", "fast stepdown", "high", "zero from 2028",
             "smallest", "no subsidy".
-        purchase_year (int): The year in which the heating system is installed.
+        purchase_year (int): The year in which the heating system is purchased and installed.
 
     Raises:
         ValueError: If the subsidy model is not supported.
