@@ -125,10 +125,10 @@ def get_ashp_subsidy_value(subsidy_model: str, purchase_year: int) -> float:
 
 def compute_upfront_cost(
     heating_system: str,
-    life_span: int,
     archetype: str,
     annual_cost_reduction: float,
     purchase_year: int,
+    life_span: int = None,
     decile: int = None,
     subsidy_model_or_input_values: Union[str, dict] = "no subsidy",
     purchase_with_loan: bool = False,
@@ -139,9 +139,10 @@ def compute_upfront_cost(
     Args:
         heating_system (str): heating system.
             Takes "ashp" (for air source heat pump) or "boiler" (for gas boiler).
-        life_span (int): Number of years the heating system is assumed to be operational.
         archetype (str): Property archetype
             Takes: TODO: add final list of archetypes.
+        life_span (int): Number of years the heating system is assumed to be operational.
+            Defaults to None. Only required when purchase_with_loan is True.
         decile (int, optional): cost decile, only used for air source heat pumps.
         annual_cost_reduction (float): how much the cost of installing the heating system reduces each year
             in comparison to the previous year.
@@ -191,6 +192,8 @@ def compute_upfront_cost(
         upfront_cost = installation_cost
 
     if purchase_with_loan:
+        if life_span is None:
+            raise ValueError("Please provide `life_span` in years when purchasing with loans.")
         if loan_interest_rate != 0.0:
             loan_amount = upfront_cost
             loan_term = life_span  # loan repayment period is assumed to be over lifetime
