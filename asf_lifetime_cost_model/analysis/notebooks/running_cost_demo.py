@@ -194,3 +194,37 @@ sum(ashp_running_costs_time_series.values())
 
 # %% [markdown]
 # As the RO levy was rebalanced from electricity units to gas units (making electricity cheaper), running an air source heat pump in this scenario leads to lower running costs.
+
+# %% [markdown]
+# **Air source heat pump running costs, with multiple levies (RO and Fit) are rebalanced from electricity units to gas units**
+
+# %%
+ashp_running_costs_time_series = running_costs.compute_running_cost_time_series(
+    purchase_year=2025,
+    life_span=15,
+    heating_system_efficiency=3.0,
+    fuel_type="electricity",
+    archetype="pre_1950_semi_terraced_house",
+    wholesale_price_projection_scenario="reference",
+    include_standing_charge=False,
+    levy_rebalancing=True,
+    levies_to_rebalance=["ro", "fit"],
+    levy_rebalancing_weights={
+        "electricity_weight": 0,
+        "gas_weight": 1,
+        "tax_weight": 0,
+        "fixed_electricity_weight": 0,
+        "variable_electricity_weight": 0,
+        "fixed_gas_weight": 0,
+        "variable_gas_weight": 1,
+    },
+)
+
+# %%
+ashp_running_costs_time_series
+
+# %%
+sum(ashp_running_costs_time_series.values())
+
+# %% [markdown]
+# As both the RO AND FiT levies were rebalanced from electricity units to gas units (making electricity even cheaper), running an air source heat pump in this scenario leads to even lower running costs compared to just rebalancing RO only.
