@@ -58,16 +58,12 @@ def create_cost_reduction_data(
     reduction_per_year = {reference_year: 1}  # no reduction in the reference year
 
     for year in range(reference_year + 1, max_year + 1):
-        reduction_per_year[year] = (1 - annual_cost_reduction) * reduction_per_year[
-            year - 1
-        ]
+        reduction_per_year[year] = (1 - annual_cost_reduction) * reduction_per_year[year - 1]
 
     return reduction_per_year
 
 
-def get_installation_cost(
-    heating_system: str, archetype: str, decile: int = None
-) -> float:
+def get_installation_cost(heating_system: str, archetype: str, decile: int = None) -> float:
     """Gets the cost of a heating system for a specific archetype (and decile where applicable).
 
     Args:
@@ -85,20 +81,14 @@ def get_installation_cost(
         float: The cost of the heating system for the specified archetype (and decile where applicable).
     """
     if decile is not None and (decile < 10 or decile > 90 or decile % 10 != 0):
-        raise ValueError(
-            "Decile must be a multiple of 10 between 10 and 90, inclusive."
-        )
+        raise ValueError("Decile must be a multiple of 10 between 10 and 90, inclusive.")
 
     if heating_system == "ashp":
         costs_data = data_getters.get_ashp_installation_costs()
-        cost_value = costs_data[costs_data["archetype_label"] == archetype][
-            f"cost_percentile_{decile}"
-        ].iloc[0]
+        cost_value = costs_data[costs_data["archetype_label"] == archetype][f"cost_percentile_{decile}"].iloc[0]
     elif heating_system == "boiler":
         costs_data = data_getters.get_gas_boiler_installation_costs()
-        cost_value = costs_data[(costs_data["archetype_label"] == archetype)][
-            "cost"
-        ].iloc[0]
+        cost_value = costs_data[(costs_data["archetype_label"] == archetype)]["cost"].iloc[0]
     else:
         raise ValueError(
             f"Unsupported heating system: {heating_system}. Supported heating systems are `ashp` and `boiler`."
@@ -125,14 +115,10 @@ def get_ashp_subsidy_value(subsidy_model: str, purchase_year: int) -> float:
     supported_models = config.get("ashp_subsidy_options")
 
     if subsidy_model not in supported_models:
-        raise ValueError(
-            f"Unsupported subsidy model: {subsidy_model}. Supported models are: {supported_models}"
-        )
+        raise ValueError(f"Unsupported subsidy model: {subsidy_model}. Supported models are: {supported_models}")
 
     subsidy_data = data_getters.get_ashp_subsidy_options_data()
-    subsidy_value = subsidy_data[subsidy_data["model"] == subsidy_model][
-        str(purchase_year)
-    ].iloc[0]
+    subsidy_value = subsidy_data[subsidy_data["model"] == subsidy_model][str(purchase_year)].iloc[0]
 
     return subsidy_value
 
@@ -184,26 +170,22 @@ def compute_upfront_cost(
         )
 
     # Get installation cost for a specific heating system, archetype, and decile (where applicable)
-    installation_cost = get_installation_cost(
-        heating_system=heating_system, archetype=archetype, decile=decile
-    )
+    installation_cost = get_installation_cost(heating_system=heating_system, archetype=archetype, decile=decile)
 
     # Apply installation cost reduction assumption
-    cost_reduction_data = create_cost_reduction_data(
-        annual_cost_reduction=annual_cost_reduction
-    )
+    cost_reduction_data = create_cost_reduction_data(annual_cost_reduction=annual_cost_reduction)
     cost_reduction_value = cost_reduction_data[purchase_year]
     installation_cost = installation_cost * cost_reduction_value
 
     # ASHP with preset subsidy model
     if (type(subsidy_model_or_input_values) is str) and (heating_system == "ashp"):
-        subsidy_value = get_ashp_subsidy_value(
-            subsidy_model=subsidy_model_or_input_values, purchase_year=purchase_year
-        )
+        subsidy_value = get_ashp_subsidy_value(subsidy_model=subsidy_model_or_input_values, purchase_year=purchase_year)
         upfront_cost = installation_cost - subsidy_value
     # ASHP with custom subsidy model
-    elif heating_system == "ashp":  # float provided
-        upfront_cost = installation_cost - subsidy_model_or_input_values[purchase_year]
+    elif heating_system == "ashp":  # dictionary provided
+        if purchase_year not in subsidy_model_or_input_values.keys():
+            raise ValueError(f"Please provide subsidy value for purchase year: {purchase_year}")
+        return installation_cost - subsidy_model_or_input_values[purchase_year]
     # Boilers
     else:  # boilers
         upfront_cost = installation_cost
@@ -211,12 +193,8 @@ def compute_upfront_cost(
     if purchase_with_loan:
         if loan_interest_rate != 0.0:
             loan_amount = upfront_cost
-            loan_term = (
-                life_span  # loan repayment period is assumed to be over lifetime
-            )
-            annual_loan_payment = (loan_amount * loan_interest_rate) / (
-                1 - ((1 + loan_interest_rate) ** -loan_term)
-            )
+            loan_term = life_span  # loan repayment period is assumed to be over lifetime
+            annual_loan_payment = (loan_amount * loan_interest_rate) / (1 - ((1 + loan_interest_rate) ** -loan_term))
             return annual_loan_payment * loan_term
         else:  # 0% interest
             return upfront_cost
@@ -267,9 +245,7 @@ def compute_total_lifetime_costs(
         float: The total costs over the specified number of years.
     """
     if (heating_system == "boiler") and (subsidy_model_or_input_values != "no subsidy"):
-        raise ValueError(
-            "Subsidy model is only applicable for air source heat pumps. Choose 'no subsidy'."
-        )
+        raise ValueError("Subsidy model is only applicable for air source heat pumps. Choose 'no subsidy'.")
 
     if (
         (heating_system == "ashp")
@@ -303,9 +279,7 @@ def compute_total_lifetime_costs(
     return upfront_cost + maintenance_cost
 
 
-def create_annualised_cost_time_series(
-    cost_value: float, life_span: int, purchase_year: int
-) -> dict:
+def create_annualised_cost_time_series(cost_value: float, life_span: int, purchase_year: int) -> dict:
     """Creates a time series of annualised cost per year in the lifetime of the heating system.
 
     Args:
