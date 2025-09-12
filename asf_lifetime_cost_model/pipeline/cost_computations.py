@@ -1,11 +1,8 @@
-"""Cost computations.
+"""Maintenance and installation cost calculation.
 
 Functions to handle cost computations for the ASF lifetime cost model including:
 - Total maintenance costs
 - Upfront installation costs
-- Running costs
-- Total lifetime costs computation
-as a total and as a breakdown per year in the lifetime of the heating system.
 """
 
 # package imports
@@ -206,87 +203,3 @@ def compute_upfront_cost(
             return upfront_cost
     else:  # not purchasing with loan
         return upfront_cost
-
-
-def compute_total_lifetime_costs(
-    heating_system: str,
-    archetype: str,
-    annual_cost_reduction: float,
-    purchase_year: int,
-    maintenance_cost: float,
-    maintenance_frequency_per_year: float,
-    life_span: int,
-    subsidy_model_or_input_values: Union[str, dict] = "no subsidy",
-    decile: int = None,
-    purchase_with_loan: bool = False,
-    loan_interest_rate: float = 0.0,
-) -> float:
-    """Computes the lifetime cost of a heating system over its lifetime.
-
-    Args:
-        heating_system (str): heating system.
-            Takes "ashp" (for air source heat pump) or "boiler" (for gas boiler).
-        archetype (str): Property archetype
-            Takes: TODO: add final list of archetypes.
-        annual_cost_reduction (float): how much the cost of installing the heating system reduces each year
-            in comparison to the previous year.
-        purchase_year (int): the year in which the heating system is installed.
-        maintenance_cost (float): The cost of one maintenance servicing session for heating system.
-        maintenance_frequency_per_year (float): Average number of times the heating system is serviced each year.
-        life_span (int): Number of years the heating system is assumed to be operational.
-        subsidy_model_or_input_values (Union[str, dict], optional): The ASHP subsidy model to get the subsidy
-            to be subtracted OR a dictionary of subsidy values for each year.
-            Models include: "flat", "slow stepdown", "fast stepdown", "high", "zero from 2028",
-            "smallest", "no subsidy".
-        decile (int, optional): cost decile, only used for air source heat pumps.
-        purchase_with_loan (bool): Whether heating system is purchased with a loan. Defaults to False.
-            Loan repayment period is set equal to provided life span of heating system.
-        loan_interest_rate (float): Loan interest rate, as a decimal (e.g. 5% interest rate should be inputted
-            as 0.05). Defaults to 0.0.
-
-    Raises:
-        ValueError: If the subsidy model is not applicable for the heating system.
-
-    Returns:
-        float: The total costs over the specified number of years.
-    """
-    upfront_cost = compute_upfront_cost(
-        heating_system=heating_system,
-        life_span=life_span,
-        archetype=archetype,
-        decile=decile,
-        annual_cost_reduction=annual_cost_reduction,
-        purchase_year=purchase_year,
-        subsidy_model_or_input_values=subsidy_model_or_input_values,
-        purchase_with_loan=purchase_with_loan,
-        loan_interest_rate=loan_interest_rate,
-    )
-    maintenance_cost = compute_total_maintenance_cost(
-        maintenance_cost=maintenance_cost,
-        maintenance_frequency_per_year=maintenance_frequency_per_year,
-        life_span=life_span,
-    )
-
-    # running_costs = compute_running_costs()
-
-    return upfront_cost + maintenance_cost
-
-
-def create_annualised_cost_time_series(cost_value: float, life_span: int, purchase_year: int) -> dict:
-    """Creates a time series of annualised cost per year in the lifetime of the heating system.
-
-    Args:
-        cost_value (float): The total cost value to be annualised.
-        life_span (int): Number of years the heating system is assumed to be operational.
-        purchase_year (int): The year in which the heating system is purchased and installed.
-
-    Returns:
-        dict: A dictionary with years as keys and cost values as values.
-    """
-    cost_per_year = cost_value / life_span
-    annualised_cost_time_series = dict.fromkeys(
-        range(purchase_year, purchase_year + life_span),
-        cost_per_year,
-    )
-
-    return annualised_cost_time_series
