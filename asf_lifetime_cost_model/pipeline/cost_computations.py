@@ -38,7 +38,7 @@ def compute_total_maintenance_cost(
 def create_cost_reduction_data(
     annual_cost_reduction: float,
     reference_year: int = config.get("cost_data_reference_year"),
-    max_year: int = config.get("cost_year_max"),
+    max_year: int = config.get("installation_year_max"),
 ) -> dict:
     """Creates cost reduction data for a heating system over the years by applying an annual cost reduction rate.
 
@@ -50,7 +50,7 @@ def create_cost_reduction_data(
         reference_year (int, optional): The year from which the reduction starts.
             Defaults to config.get("cost_data_reference_year").
         max_year (int, optional): The maximum year for which the reduction is calculated.
-            Defaults to config.get("cost_year_max").
+            Defaults to config.get("installation_year_max").
 
     Returns:
         dict: A dictionary with years as keys and the reduction factor as values.
@@ -162,8 +162,8 @@ def compute_upfront_cost(
     Returns:
         float: Upfront cost of installing a heating system.
     """
-    if purchase_year >= config.get("cost_year_max"):
-        raise ValueError(f"Purchase year must be before {config.get('cost_year_max')}.")
+    if purchase_year >= config.get("installation_year_max"):
+        raise ValueError(f"Purchase year must be before {config.get('installation_year_max')}.")
 
     if heating_system not in ["ashp", "boiler"]:
         raise ValueError(
