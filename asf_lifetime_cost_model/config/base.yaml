@@ -60,4 +60,7 @@ levy_rebalancing_options:
   ]
 
 cost_data_reference_year: 2023 # reference year for ashp cost data
-cost_year_max: 2035
+
+installation_year_max: 2035
+
+therm_to_kwh_conversion: 29.31 # unit conversion between therm and kwh used for processing DESNZ wholesale price projection values for gas
