@@ -76,7 +76,7 @@ ashp_energy_demand = heat_demand / ashp_efficiency  # MWh
 boiler_energy_demand = heat_demand / boiler_efficiency  # MWh
 
 # Assumptions about installation cost
-ashp_installation_cost = 12_035  # £ Median cost of ASHP installation from BUS statistics 2025 Q1 Jan to March)
+ashp_installation_cost = 12_500  # £ Median cost of ASHP installation from BUS statistics 2025 Q2
 boiler_installation_cost = 3_000  # £
 current_bus_subsidy = 7_500  # £
 
@@ -84,8 +84,12 @@ current_bus_subsidy = 7_500  # £
 ashp_lifetime = 15  # years
 boiler_lifetime = 15  # years
 
+# %% [markdown]
+# Median ASHP installation cost source: https://www.gov.uk/government/statistics/boiler-upgrade-scheme-statistics-july-2025
+# - Table Q1.1 under 2025 Q2 Apr to Jun
+
 # %%
-# Instantiate Tariff objects for current price cap July - September 2025
+# Instantiate Tariff objects for Ofgem current energy price cap July - September 2025
 current_gas_tariff, current_electricity_tariff = (
     data_getters.get_current_energy_price_cap_tariffs()
 )
