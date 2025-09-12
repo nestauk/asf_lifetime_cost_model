@@ -7,7 +7,6 @@ from asf_lifetime_cost_model.pipeline import cost_computations
 # %%
 cost_computations.compute_upfront_cost(
     heating_system="ashp",
-    life_span=15,
     archetype="pre_1950_semi_terraced_house_5_rooms",
     annual_cost_reduction=0.01,
     purchase_year=2026,
@@ -21,7 +20,6 @@ cost_computations.compute_upfront_cost(
 # %%
 cost_computations.compute_upfront_cost(
     heating_system="ashp",
-    life_span=15,
     archetype="pre_1950_semi_terraced_house_5_rooms",
     annual_cost_reduction=0.01,
     purchase_year=2026,
@@ -35,7 +33,6 @@ cost_computations.compute_upfront_cost(
 # %%
 cost_computations.compute_upfront_cost(
     heating_system="ashp",
-    life_span=15,
     archetype="pre_1950_semi_terraced_house_5_rooms",
     annual_cost_reduction=0.01,
     purchase_year=2026,
@@ -44,17 +41,19 @@ cost_computations.compute_upfront_cost(
 )
 
 # %% [markdown]
-# Testing what happens if subsidy model is wrong:
+# Testing purchasing with loan:
 
 # %%
 cost_computations.compute_upfront_cost(
     heating_system="ashp",
-    life_span=15,
     archetype="pre_1950_semi_terraced_house_5_rooms",
     annual_cost_reduction=0.01,
     purchase_year=2026,
     decile=50,
-    subsidy_model_or_input_values="f",
+    subsidy_model_or_input_values="no subsidy",
+    purchase_with_loan=True,
+    loan_interest_rate=0.05,
+    life_span=7,
 )
 
 # %% [markdown]
@@ -74,7 +73,8 @@ cost_computations.compute_upfront_cost(
 )
 
 # %% [markdown]
-# We can calculate how much interest added to the upfront cost by calculating the difference between purchasing with and without loan
+# We can calculate how much interest added to the upfront cost by
+# calculating the difference between purchasing with and without loan
 
 # %%
 upfront_cost_with_loan = cost_computations.compute_upfront_cost(
@@ -101,11 +101,12 @@ upfront_cost_without_loan = cost_computations.compute_upfront_cost(
 )
 
 interest = upfront_cost_with_loan - upfront_cost_without_loan
-interest
+print(interest)
 
 # %%
 # Annualised
-1909 / 15
+annualised_interest = interest / 15
+print(annualised_interest)
 
 # %% [markdown]
 # Testing if purchasing with loan with 0% interest rate
@@ -175,9 +176,7 @@ cost_computations.compute_upfront_cost(
 # Total maintenance costs:
 
 # %%
-cost_computations.compute_total_maintenance_cost(
-    maintenance_cost=80, maintenance_frequency_per_year=1, life_span=15
-)
+cost_computations.compute_total_maintenance_cost(maintenance_cost=80, maintenance_frequency_per_year=1, life_span=15)
 
 # %% [markdown]
 # Total lifetime cost for an air source heat pump:
@@ -248,8 +247,6 @@ cost_computations.compute_total_lifetime_costs(
 # Dictionary with breakdown of costs given a total cost, installation year and life span:
 
 # %%
-cost_computations.create_annualised_cost_time_series(
-    cost_value=4110.897, life_span=15, purchase_year=2026
-)
+cost_computations.create_annualised_cost_time_series(cost_value=4110.897, life_span=15, purchase_year=2026)
 
 # %%
