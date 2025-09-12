@@ -17,7 +17,8 @@ maintenance_costs_default:
   ashp: 80 # GBP
   boiler: 80 # GBP
 
-ashp_subsidy_options: [
+ashp_subsidy_options:
+  [
     "flat",
     "slow stepdown",
     "fast stepdown",
@@ -25,7 +26,6 @@ ashp_subsidy_options: [
     "zero from 2028",
     "smallest",
     "no subsidy",
-    "other", # for custom subsidy input
   ]
 
 ashp_annual_cost_decrease_range: [-0.01, 0.05] # range for annual cost decrease for ASHPs -1% to +5%
@@ -58,6 +58,8 @@ levy_rebalancing_options:
     "rebalance unit costs between electricity and gas",
     "remove all electricity levies to taxation",
   ]
+
+cost_data_reference_year: 2023 # reference year for ashp cost data
 
 installation_year_max: 2035
 
