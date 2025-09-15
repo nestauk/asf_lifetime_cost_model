@@ -434,3 +434,37 @@ def get_gas_boiler_installation_costs() -> pd.DataFrame:
     )
     data.set_index("archetype_label", inplace=True)
     return data
+
+
+def get_installation_cost(costs_data: pd.DataFrame, heating_system: str, decile: int = None) -> pd.DataFrame:
+    """Gets the cost of a heating system for different archetypes (and a specific decile, where applicable).
+
+    Args:
+        costs_data (pd.DataFrame): DataFrame containing installation costs for different property archetypes.
+        heating_system (str): heating system.
+            Takes "ashp" (for air source heat pump) or "boiler" (for gas boiler).
+        decile (int): cost decile, only applicable when heating system is "ashp" air source heat pumps.
+            Takes multiples of 10 between 10 and 90, inclusive.
+
+    Raises:
+        ValueError: If the heating system inputed is not supported
+                    or the decile is not a multiple of 10 between 10 and 90.
+
+    Returns:
+        pd.DataFrame: A DataFrame with property archetypes as index and installation cost as column.
+    """
+    if decile is not None and (decile < 10 or decile > 90 or decile % 10 != 0):
+        raise ValueError("Decile must be a multiple of 10 between 10 and 90, inclusive.")
+
+    if heating_system == "ashp":
+        costs_data = costs_data[[f"cost_percentile_{decile}"]].rename(
+            columns={f"cost_percentile_{decile}": "installation_cost"}
+        )
+    elif heating_system == "boiler":
+        costs_data = costs_data.rename(columns={"cost": "installation_cost"})
+    else:
+        raise ValueError(
+            f"Unsupported heating system: {heating_system}. Supported heating systems are `ashp` and `boiler`."
+        )
+
+    return costs_data

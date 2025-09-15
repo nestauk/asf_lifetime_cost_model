@@ -1,4 +1,9 @@
-"""A module to calculate the lifetime cost of heating systems, including installation, maintenance, and running costs."""
+"""A module to calculate the lifetime cost of heating systems.
+
+This includes installation, maintenance, and running costs.
+
+Example of usage:
+"""
 
 # package imports
 from typing import Optional, Union
@@ -17,40 +22,6 @@ from asf_lifetime_cost_model.pipeline.running_costs import (
     create_energy_cost_time_series,
     get_wholesale_price_projection_series,
 )
-
-
-def get_installation_cost(costs_data: pd.DataFrame, heating_system: str, decile: int = None) -> pd.DataFrame:
-    """Gets the cost of a heating system for a specific archetype (and decile where applicable).
-
-    Args:
-        costs_data (pd.DataFrame): DataFrame containing installation costs for different property archetypes.
-        heating_system (str): heating system.
-            Takes "ashp" (for air source heat pump) or "boiler" (for gas boiler).
-        decile (int, optional): cost decile, only used for air source heat pumps.
-            Takes multiples of 10 between 10 and 90, inclusive.
-
-    Raises:
-        ValueError: If the heating system inputed is not supported
-                    or the decile is not a multiple of 10 between 10 and 90.
-
-    Returns:
-        pd.DataFrame: A DataFrame with property archetypes as index and installation cost as column.
-    """
-    if decile is not None and (decile < 10 or decile > 90 or decile % 10 != 0):
-        raise ValueError("Decile must be a multiple of 10 between 10 and 90, inclusive.")
-
-    if heating_system == "ashp":
-        costs_data = costs_data[[f"cost_percentile_{decile}"]].rename(
-            columns={f"cost_percentile_{decile}": "installation_cost"}
-        )
-    elif heating_system == "boiler":
-        costs_data = costs_data.rename(columns={"cost": "installation_cost"})
-    else:
-        raise ValueError(
-            f"Unsupported heating system: {heating_system}. Supported heating systems are `ashp` and `boiler`."
-        )
-
-    return costs_data
 
 
 class LifetimeCostCalculator(object):
@@ -131,12 +102,13 @@ class LifetimeCostCalculator(object):
         if (heating_system == "boiler") and (subsidy_model_or_input_values != "no subsidy"):
             raise ValueError("Subsidy model is only applicable for air source heat pumps. Choose 'no subsidy'.")
 
-
         if installation_costs is None:
             installation_costs = (
-                self.ashp_installation_costs.copy() if heating_system == "ashp" else self.boiler_installation_costs.copy()
+                self.ashp_installation_costs.copy()
+                if heating_system == "ashp"
+                else self.boiler_installation_costs.copy()
             )
-        installation_costs = get_installation_cost(
+        installation_costs = data_getters.get_installation_cost(
             costs_data=installation_costs, heating_system=heating_system, decile=decile
         )
 
