@@ -139,9 +139,14 @@ class LifetimeCostCalculator(object):
             if loan_interest_rate < 0.0 or loan_interest_rate > 1.0:
                 raise ValueError("Loan interest rate should be provided as a decimal between 0 and 1.")
 
-            installation_costs["installation_cost"] = installation_costs.apply(
-                lambda x: compute_cost_with_loan(
-                    upfront_cost=x["installation_cost"], life_span=life_span, loan_interest_rate=loan_interest_rate
+            installation_costs["loan_interest"] = installation_costs.apply(
+                lambda x: (
+                    compute_cost_with_loan(
+                        upfront_cost=x["installation_cost"],
+                        life_span=life_span,
+                        loan_interest_rate=loan_interest_rate,
+                    )
+                    - x["installation_cost"]
                 ),
                 axis=1,
             )
