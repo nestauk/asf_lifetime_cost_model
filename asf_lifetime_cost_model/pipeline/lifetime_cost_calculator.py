@@ -295,7 +295,7 @@ class LifetimeCostCalculator(object):
             pd.DataFrame: A DataFrame with property archetypes as index and total lifetime costs as column.
         """
         total_lifetime_costs = pd.DataFrame()
-        total_lifetime_costs["lifetime_installations"] = installation_costs
+        total_lifetime_costs["lifetime_installation_costs"] = installation_costs.sum(axis=1)
         total_lifetime_costs["lifetime_maintenance_costs"] = maintenance_costs
         total_lifetime_costs["lifetime_running_costs"] = running_costs.sum(axis=1)
         total_lifetime_costs["total_lifetime_costs"] = total_lifetime_costs.sum(axis=1)
