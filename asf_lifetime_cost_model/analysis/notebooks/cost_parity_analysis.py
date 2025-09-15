@@ -1,20 +1,3 @@
-# -*- coding: utf-8 -*-
-# ---
-# jupyter:
-#   jupytext:
-#     cell_metadata_filter: -all
-#     custom_cell_magics: kql
-#     text_representation:
-#       extension: .py
-#       format_name: percent
-#       format_version: '1.3'
-#       jupytext_version: 1.11.2
-#   kernelspec:
-#     display_name: .venv
-#     language: python
-#     name: python3
-# ---
-
 # %%
 import asf_lifetime_cost_model.getters.data_getters as data_getters
 
@@ -70,13 +53,17 @@ medium_tdcv_gas = (
 heating_gas_share = 0.97  # share of gas TDCV we are assuming is for heating
 boiler_efficiency = 0.85
 ashp_efficiency = 3.0
+# gas share and efficiency assumptions adopted by ASF policy team. e.g. in report
+# https://www.nesta.org.uk/report/how-to-make-heat-pumps-more-affordable/assumptions-and-methods/
 
 heat_demand = medium_tdcv_gas * heating_gas_share  # MWh
 ashp_energy_demand = heat_demand / ashp_efficiency  # MWh
 boiler_energy_demand = heat_demand / boiler_efficiency  # MWh
 
 # Assumptions about installation cost
-ashp_installation_cost = 12_500  # £ Median cost of ASHP installation from BUS statistics 2025 Q2
+ashp_installation_cost = (
+    12_500  # £ Median cost of ASHP installation from BUS statistics 2025 Q2
+)
 boiler_installation_cost = 3_000  # £
 current_bus_subsidy = 7_500  # £
 
@@ -97,13 +84,13 @@ current_gas_tariff, current_electricity_tariff = (
 # %%
 current_electricity_price = (
     current_electricity_tariff.calculate_variable_consumption(consumption=1) * 1.05
-)  # £/MWh including VAT
+)  # £/MWh including 5% VAT
 current_gas_price = (
     current_gas_tariff.calculate_variable_consumption(consumption=1) * 1.05
-)  # £/MWh including VAT
+)  # £/MWh including 5% VAT
 current_gas_standing_charge = (
     current_gas_tariff.calculate_nil_consumption() * 1.05
-)  # £/year including VAT
+)  # £/year including 5% VAT
 
 # %%
 current_electricity_price, current_gas_price, current_gas_standing_charge
@@ -128,9 +115,6 @@ electricity_price_for_parity = calculate_electricity_price_for_cost_parity(
 electricity_price_for_parity, current_electricity_price
 
 # %%
-electricity_price_for_parity, current_electricity_price
-
-# %%
 electricity_price_for_parity / current_electricity_price
 
 # %%
@@ -147,7 +131,7 @@ electricity_price_for_parity = calculate_electricity_price_for_cost_parity(
     ashp_energy_demand=ashp_energy_demand,
     ashp_lifetime=ashp_lifetime,
     ashp_installation_cost=ashp_installation_cost,
-    ashp_subsidy=current_bus_subsidy / 2,
+    ashp_subsidy=3_750,
     boiler_energy_demand=boiler_energy_demand,
     gas_price=current_gas_price,
     boiler_lifetime=boiler_lifetime,
@@ -198,6 +182,7 @@ electricity_price_for_parity / current_electricity_price
 
 # %% [markdown]
 # Finding subsidy to reach cost parity given current energy prices
+
 
 # %%
 # Function to solve for ashp_subsidy at lifetime cost parity
