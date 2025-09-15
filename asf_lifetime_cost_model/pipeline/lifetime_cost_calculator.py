@@ -19,10 +19,11 @@ from asf_lifetime_cost_model.pipeline.running_costs import (
 )
 
 
-def get_installation_cost(costs_data: pd.DataFrame, heating_system: str, decile: int = None) -> pd.Series:
+def get_installation_cost(costs_data: pd.DataFrame, heating_system: str, decile: int = None) -> pd.DataFrame:
     """Gets the cost of a heating system for a specific archetype (and decile where applicable).
 
     Args:
+        costs_data (pd.DataFrame): DataFrame containing installation costs for different property archetypes.
         heating_system (str): heating system.
             Takes "ashp" (for air source heat pump) or "boiler" (for gas boiler).
         decile (int, optional): cost decile, only used for air source heat pumps.
@@ -87,6 +88,7 @@ class LifetimeCostCalculator(object):
         purchase_year: int,
         life_span: int = None,
         decile: int = None,
+        installation_costs: pd.DataFrame = None,
         subsidy_model_or_input_values: Union[str, dict] = "no subsidy",
         purchase_with_loan: bool = False,
         loan_interest_rate: float = 0.0,
@@ -94,15 +96,15 @@ class LifetimeCostCalculator(object):
         """Computes the upfront costs of installing a heating system.
 
         Args:
-            installation_costs (pd.DataFrame): DataFrame containing installation costs for different property archetypes.
             heating_system (str): heating system.
                 Takes "ashp" (for air source heat pump) or "boiler" (for gas boiler).
+            annual_cost_reduction (float): how much the cost of installing the heating system reduces each year
+                in comparison to the previous year. 5% reduction should be inputted as 0.05.
+            purchase_year (int): the year in which the heating system is purchased and installed.
             life_span (int): Number of years the heating system is assumed to be operational.
                 Defaults to None. Only required when purchase_with_loan is True.
             decile (int, optional): cost decile, only used for air source heat pumps.
-            annual_cost_reduction (float): how much the cost of installing the heating system reduces each year
-                in comparison to the previous year.
-            purchase_year (int): the year in which the heating system is installed.
+            installation_costs (pd.DataFrame, optional): DataFrame containing installation costs for different property archetypes.
             subsidy_model_or_input_values (Union[str, dict], optional): The ASHP subsidy model to get the subsidy
                 to be subtracted OR a dictionary of subsidy values for each year.
                 Models include: "flat", "slow stepdown", "fast stepdown", "high", "zero from 2028",
@@ -129,11 +131,11 @@ class LifetimeCostCalculator(object):
         if (heating_system == "boiler") and (subsidy_model_or_input_values != "no subsidy"):
             raise ValueError("Subsidy model is only applicable for air source heat pumps. Choose 'no subsidy'.")
 
-        # Get installation cost for a specific heating system, archetype, and decile (where applicable)
-        # installation_cost = get_installation_cost(heating_system=heating_system, decile=decile)
-        installation_costs = (
-            self.ashp_installation_costs.copy() if heating_system == "ashp" else self.boiler_installation_costs.copy()
-        )
+
+        if installation_costs is None:
+            installation_costs = (
+                self.ashp_installation_costs.copy() if heating_system == "ashp" else self.boiler_installation_costs.copy()
+            )
         installation_costs = get_installation_cost(
             costs_data=installation_costs, heating_system=heating_system, decile=decile
         )
