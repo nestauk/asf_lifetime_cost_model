@@ -3,6 +3,21 @@
 This includes installation, maintenance, and running costs.
 
 Example of usage:
+from asf_lifetime_cost_model.pipeline.lifetime_cost_calculator import (
+    LifetimeCostCalculator,
+)
+
+calculator = LifetimeCostCalculator()
+ashp_upfront_costs = calculator.compute_upfront_cost(
+    heating_system="ashp",
+    annual_cost_reduction=0.05,
+    purchase_year=2025,
+    life_span=10,
+    decile=50,
+    subsidy_model_or_input_values="flat",
+    purchase_with_loan=True,
+    loan_interest_rate=0.05,
+)
 """
 
 # package imports
@@ -123,14 +138,14 @@ class LifetimeCostCalculator(object):
             subsidy_value = get_ashp_subsidy_value(
                 subsidy_data=subsidy_data, subsidy_model=subsidy_model_or_input_values, purchase_year=purchase_year
             )
-            installation_costs["installation_cost"] = installation_costs["installation_cost"] - subsidy_value
+            installation_costs["subsidy_value"] = subsidy_value
         # ASHP with custom subsidy model
         elif heating_system == "ashp":  # dictionary provided
             if purchase_year not in subsidy_model_or_input_values.keys():
                 raise ValueError(f"Please provide subsidy value for purchase year: {purchase_year}")
-            installation_costs["installation_cost"] = (
-                installation_costs["installation_cost"] - subsidy_model_or_input_values[purchase_year]
-            )
+            installation_costs["subsidy_value"] = subsidy_model_or_input_values[purchase_year]
+        else:
+            installation_costs["subsidy_value"] = 0.0
 
         if purchase_with_loan:
             if life_span is None:
@@ -139,17 +154,22 @@ class LifetimeCostCalculator(object):
             if loan_interest_rate < 0.0 or loan_interest_rate > 1.0:
                 raise ValueError("Loan interest rate should be provided as a decimal between 0 and 1.")
 
+            installation_costs["cost_after_subsidy"] = (
+                installation_costs["installation_cost"] - installation_costs["subsidy_value"]
+            )
             installation_costs["loan_interest"] = installation_costs.apply(
                 lambda x: (
                     compute_cost_with_loan(
-                        upfront_cost=x["installation_cost"],
+                        upfront_cost=x["cost_after_subsidy"],
                         life_span=life_span,
                         loan_interest_rate=loan_interest_rate,
                     )
-                    - x["installation_cost"]
+                    - x["cost_after_subsidy"]
                 ),
                 axis=1,
             )
+        else:
+            installation_costs["loan_interest"] = 0.0
 
         return installation_costs
 
@@ -287,7 +307,11 @@ class LifetimeCostCalculator(object):
         return running_costs_time_series
 
     def compute_total_lifetime_costs(
-        self, installation_costs: pd.DataFrame, maintenance_costs: pd.DataFrame, running_costs: pd.DataFrame
+        self,
+        installation_costs: pd.DataFrame,
+        maintenance_costs: pd.DataFrame,
+        running_costs: pd.DataFrame,
+        subsidy_model: Optional[str] = None,
     ) -> pd.DataFrame:
         """Computes the lifetime cost of a heating system over its lifetime.
 
@@ -300,32 +324,42 @@ class LifetimeCostCalculator(object):
             pd.DataFrame: A DataFrame with property archetypes as index and total lifetime costs as column.
         """
         total_lifetime_costs = pd.DataFrame()
-        total_lifetime_costs["lifetime_installation_costs"] = installation_costs.sum(axis=1)
+        total_lifetime_costs["installation_costs"] = installation_costs["installation_cost"]
+        total_lifetime_costs["subsidy_value"] = installation_costs["subsidy_value"]
+        total_lifetime_costs["loan_interest"] = installation_costs["loan_interest"]
         total_lifetime_costs["lifetime_maintenance_costs"] = maintenance_costs
         total_lifetime_costs["lifetime_running_costs"] = running_costs.sum(axis=1)
-        total_lifetime_costs["total_lifetime_costs"] = total_lifetime_costs.sum(axis=1)
+        total_lifetime_costs["total_lifetime_costs"] = (
+            total_lifetime_costs[
+                [
+                    "installation_costs",
+                    "loan_interest",
+                    "lifetime_maintenance_costs",
+                    "lifetime_running_costs",
+                ]
+            ].sum(axis=1)
+            - total_lifetime_costs["subsidy_value"]
+        )
 
         return total_lifetime_costs
 
-    # def create_annualised_cost_time_series(self,
-    #                                        cost_value: float, life_span: int, purchase_year: int) -> dict:
-    #     """Creates a time series of annualised cost per year in the lifetime of the heating system.
+    def compute_annualised_lifetime_costs(
+        self, total_lifetime_costs: pd.DataFrame, cost_column: str, life_span: int
+    ) -> pd.DataFrame:
+        """Computes annualised cost in the lifetime of the heating system.
 
-    #     Args:
-    #         cost_value (float): The total cost value to be annualised.
-    #         life_span (int): Number of years the heating system is assumed to be operational.
-    #         purchase_year (int): The year in which the heating system is purchased and installed.
+        Args:
+            life_time_costs (pd.DataFrame): DataFrame with total lifetime costs for different property archetypes.
+            cost_column (str): The column name in life_time_costs DataFrame to be annualised.
+            life_span (int): Number of years the heating system is assumed to be operational.
+            purchase_year (int): The year in which the heating system is purchased and installed.
 
-    #     Returns:
-    #         dict: A dictionary with years as keys and cost values as values.
-    #     """
-    #     cost_per_year = cost_value / life_span
-    #     annualised_cost_time_series = dict.fromkeys(
-    #         range(purchase_year, purchase_year + life_span),
-    #         cost_per_year,
-    #     )
+        Returns:
+            pd.DataFrame: A DataFrame with property archetypes as index and annualised costs as columns.
+        """
+        total_lifetime_costs["annualised_lifetime_cost"] = total_lifetime_costs[cost_column] / life_span
 
-    #     return annualised_cost_time_series
+        return total_lifetime_costs[["annualised_lifetime_cost"]]
 
     # def calculate_median_archetype_cost(self):
     #     pass

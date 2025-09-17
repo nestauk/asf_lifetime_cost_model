@@ -28,7 +28,6 @@ ashp_maintenance_costs = calculator.compute_total_maintenance_cost(
 )
 ashp_maintenance_costs
 
-
 # %%
 ashp_running_costs = calculator.compute_running_cost_time_series(
     purchase_year=2025,
@@ -59,6 +58,12 @@ ashp_lifetime_costs = calculator.compute_total_lifetime_costs(
     running_costs=ashp_running_costs,
 )
 ashp_lifetime_costs
+
+# %%
+ashp_annualised_lifetime_costs = calculator.compute_annualised_lifetime_costs(
+    total_lifetime_costs=ashp_lifetime_costs, cost_column="total_lifetime_costs", life_span=15
+)
+ashp_annualised_lifetime_costs
 
 # %% [markdown]
 # Boiler
@@ -111,5 +116,10 @@ boiler_lifetime_costs = calculator.compute_total_lifetime_costs(
     running_costs=boiler_running_costs,
 )
 boiler_lifetime_costs
+
+# %%
+calculator.compute_annualised_lifetime_costs(
+    total_lifetime_costs=boiler_lifetime_costs, cost_column="total_lifetime_costs", life_span=15
+)
 
 # %%
