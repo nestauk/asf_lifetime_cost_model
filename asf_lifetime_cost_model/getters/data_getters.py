@@ -194,10 +194,10 @@ def get_current_energy_price_cap_tariffs(
         Tuple[Tariff, Tariff]: Gas Tariff and electricity Tariff objects corresponding to payment method for
         current price cap.
     """
-    current_price_cap_period = datetime.now().strftime("%Y-%m-%d")
+    # current_price_cap_period = datetime.now().strftime("%Y-%m-%d")
 
     gas_tariff, electricity_tariff = _create_tariff_objects(
-        payment_method=payment_method, price_cap_period=current_price_cap_period
+        payment_method=payment_method, price_cap_period="2025-09-30"
     )
 
     return gas_tariff, electricity_tariff
