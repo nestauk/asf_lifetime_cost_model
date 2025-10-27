@@ -7,7 +7,9 @@ from asf_lifetime_cost_model import config
 
 
 def get_wholesale_price_projection_series(
-    wholesale_prices_data_all_scenarios: pd.DataFrame, fuel_type: str, projection_scenario: str
+    wholesale_prices_data_all_scenarios: pd.DataFrame,
+    fuel_type: str,
+    projection_scenario: str,
 ) -> pd.DataFrame:
     """Gets a slice of the DESNZ wholesale price projection dataframe.
 
@@ -43,14 +45,22 @@ def get_wholesale_price_projection_series(
             wholesale_prices_data["projection_scenario"] == projection_scenario,
             2040,
         ]
-    elif (projection_scenario == "low fossil fuel prices") | (projection_scenario == "high fossil fuel prices"):
-        # Modify data so that wholesale prices are held constant at 2031 levels from 2032 to 2050 for low and
-        # high fossil fuel prices scenarios
+    # Modify data so that wholesale prices are held constant at 2031 levels from 2032 to 2050 for low and
+    # high fossil fuel prices scenarios
+    elif projection_scenario == "low fossil fuel prices":
         wholesale_prices_data.loc[
-            :,
+            wholesale_prices_data["projection_scenario"] == projection_scenario,
             range(2032, 2051),
         ] = wholesale_prices_data.loc[
-            :,
+            wholesale_prices_data["projection_scenario"] == projection_scenario,
+            2031,
+        ]
+    elif projection_scenario == "high fossil fuel prices":
+        wholesale_prices_data.loc[
+            wholesale_prices_data["projection_scenario"] == projection_scenario,
+            range(2032, 2051),
+        ] = wholesale_prices_data.loc[
+            wholesale_prices_data["projection_scenario"] == projection_scenario,
             2031,
         ]
     else:
