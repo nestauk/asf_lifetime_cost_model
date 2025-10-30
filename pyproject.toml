@@ -2,9 +2,6 @@
 requires = ["setuptools>=61.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools]
-packages = ["asf_lifetime_cost_model"]
-
 [project]
 name = "asf_lifetime_cost_model"
 version = "0.1.0"
@@ -14,7 +11,7 @@ license = { text = "MIT" }
 readme = "README.md"
 requires-python = "==3.13.*"
 dependencies = [
-    "asf-levies-model",
+    "asf-levies-model @ git+https://github.com/nestauk/asf_levies_model.git",
     "boto3>=1.39.15",
     "odfpy>=1.4.1",
     "pandas>=2.3.1",
@@ -22,6 +19,9 @@ dependencies = [
     "python-calamine>=0.4.0",
     "requests>=2.32.4",
 ]
+
+[tool.setuptools.packages.find]
+include = ["asf_lifetime_cost_model*"]
 
 [project.urls]
 repository = "https://github.com/nestauk/asf_lifetime_cost_model"
