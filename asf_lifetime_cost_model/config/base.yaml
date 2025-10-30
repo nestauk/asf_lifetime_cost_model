@@ -64,3 +64,12 @@ cost_data_reference_year: 2023 # reference year for ashp cost data
 installation_year_max: 2035
 
 therm_to_kwh_conversion: 29.31 # unit conversion between therm and kwh used for processing DESNZ wholesale price projection values for gas
+
+# energy consumption and customer numbers for levy rebalancing calculations - to be updated each release
+domestic_supply_electricity: 96_517_461 # total domestic electricity consumption in MWh, GB 2023
+domestic_customers_electricity: 29_239_936 # number of domestic electricity meters, GB 2023
+total_supply_electricity: 249_044_438 # DESNZ GB total electricity consumption, 2023, all consumption (domestic and non-domestic)
+# source: https://www.gov.uk/government/statistics/regional-and-local-authority-electricity-consumption-statistics
+domestic_customers_gas: 24_605_467 # number of domestic gas meters, GB 2023
+domestic_supply_gas: 266_505_188 # total domestic gas consumption in MWh, GB, non-weather corrected 2023
+# source: https://www.gov.uk/government/statistics/regional-and-local-authority-gas-consumption-statistics
