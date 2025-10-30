@@ -9,15 +9,15 @@
 from typing import Tuple
 from datetime import datetime
 
+import pandas as pd
 import asf_levies_model.getters.load_data as levies_data_getters
 import asf_levies_model.levies as levies
 import asf_levies_model.tariffs as tariffs
-import pandas as pd
-
 from asf_levies_model.tariffs import Tariff
 from asf_levies_model.levies import LevyCollection
 from asf_levies_model.summary import create_scenario_weights_dict
 
+from asf_lifetime_cost_model import config
 from asf_lifetime_cost_model.getters.getter_utils import (
     _read_s3_csv_to_dataframe,
     _read_excel_to_dataframe_or_dict,
@@ -44,9 +44,7 @@ def get_property_heat_demand() -> pd.DataFrame:
     Returns:
         pd.DataFrame: Dataframe of average heat demand
     """
-    return _read_s3_csv_to_dataframe(
-        bucket_name="asf-lifetime-cost-model", s3_key="inputs/property_heat_demand.csv"
-    )
+    return _read_s3_csv_to_dataframe(bucket_name="asf-lifetime-cost-model", s3_key="inputs/property_heat_demand.csv")
 
 
 def get_desnz_wholesale_price_projections() -> pd.DataFrame:
@@ -93,10 +91,7 @@ def get_desnz_wholesale_price_projections() -> pd.DataFrame:
         df.columns = df.iloc[1]
 
         # Filter for rows of interest
-        df = df[
-            (df["fuel"] == "Electricity (volume weighted)")
-            | (df["fuel"] == "Natural gas")
-        ].reset_index(drop=True)
+        df = df[(df["fuel"] == "Electricity (volume weighted)") | (df["fuel"] == "Natural gas")].reset_index(drop=True)
 
         # Drop redundant columns
         df = df.drop(["coverage", "note"], axis=1)
@@ -107,16 +102,12 @@ def get_desnz_wholesale_price_projections() -> pd.DataFrame:
         projection_scenarios[scenario_name] = df
 
     # Combine individual scenario tables into one dataframe
-    combined_projection_scenarios = pd.concat(
-        projection_scenarios.values(), ignore_index=True
-    )
+    combined_projection_scenarios = pd.concat(projection_scenarios.values(), ignore_index=True)
 
     return combined_projection_scenarios
 
 
-def _create_tariff_objects(
-    payment_method: str, price_cap_period: str
-) -> Tuple[Tariff, Tariff]:
+def _create_tariff_objects(payment_method: str, price_cap_period: str) -> Tuple[Tariff, Tariff]:
     """
     Downloads Ofgem price cap data (Annex 9 file) and creates gas and electricity Tariff objects.
 
@@ -174,9 +165,7 @@ def _create_tariff_objects(
         )
 
     else:
-        raise KeyError(
-            "Please provide a valid payment method (Other Payment Method, PPM or Standard Credit.)"
-        )
+        raise KeyError("Please provide a valid payment method (Other Payment Method, PPM or Standard Credit.)")
 
     fileobject.close()
 
@@ -217,21 +206,14 @@ def get_levies(price_cap_period: str) -> LevyCollection:
 
     # Definining parameters that are required for levy rebalancing calculations
 
-    # Total domestic energy consumption and energy customer numbers from DESNZ subnational consumption domestic data, 2023 - TO MOVE TO CONFIG
+    # Total domestic energy consumption and energy customer numbers from DESNZ subnational consumption domestic data
     # These are to provide consistent charging bases across all levies when rebalancing
-    # Source: https://www.gov.uk/government/statistics/regional-and-local-authority-gas-consumption-statistics
-    # Source: https://www.gov.uk/government/statistics/regional-and-local-authority-electricity-consumption-statistics
-    domestic_supply_electricity = (
-        96_517_461  # total domestic electricity consumption in MWh, GB
-    )
-    domestic_supply_gas = (
-        266_505_188  # total domestic gas consumption in MWh, GB, non-weather corrected
-    )
-    domestic_customers_gas = 24_605_467  # number of domestic gas meters, GB
-    domestic_customers_electricity = (
-        29_239_936  # number of domestic electricity meters, GB
-    )
-    total_supply_electricity = 249_044_438  # DESNZ GB total electricity consumption, 2023, all consumption (domestic and non-domestic)
+
+    domestic_supply_electricity = config.get("domestic_supply_electricity")
+    domestic_supply_gas = config.get("domestic_supply_gas")
+    domestic_customers_gas = config.get("domestic_customers_gas")
+    domestic_customers_electricity = config.get("domestic_customers_electricity")
+    total_supply_electricity = config.get("total_supply_electricity")
 
     # Store in dictionary
     denominator_values = {
@@ -250,9 +232,7 @@ def get_levies(price_cap_period: str) -> LevyCollection:
         price_cap=price_cap_period,
     )
     fit_exempt_eii_supply = fit_levy.ExemptSupplyEII
-    fit_scaling_factor = domestic_supply_electricity / (
-        total_supply_electricity - fit_exempt_eii_supply
-    )
+    fit_scaling_factor = domestic_supply_electricity / (total_supply_electricity - fit_exempt_eii_supply)
 
     # Calculate scaling factor for estimating domestic share of Network Charging Compensation (NCC) revenue
     ncc_levy = levies.NCC.from_dataframe(
@@ -312,9 +292,7 @@ def get_levies(price_cap_period: str) -> LevyCollection:
 
     fileobject.close()
 
-    levy_collection = levies.LevyCollection(
-        "Policy Costs", "pc", list_levies, denominator_values
-    )
+    levy_collection = levies.LevyCollection("Policy Costs", "pc", list_levies, denominator_values)
 
     return levy_collection
 
@@ -364,9 +342,7 @@ def get_rebalanced_levies(
 
     # Rebalance levies according to supplied denominators (consumption and customer charging base).
     # Note: This is used for internal consistency in rebalancing as different charging base numbers are used across different levies to determine levy rates.
-    levy_collection_for_rebalancing = get_levies(
-        price_cap_period=price_cap_period
-    ).rebalance_to_denominators()
+    levy_collection_for_rebalancing = get_levies(price_cap_period=price_cap_period).rebalance_to_denominators()
 
     # Instantiate a dictionary that hold current electricity/gas and variable/fixed revenue weights for each levy
     # These weights will be modified in the rebalancing process
@@ -390,6 +366,7 @@ def get_rebalanced_levies(
 
     return rebalanced_levy_collection
 
+
 def get_ashp_subsidy_options_data() -> pd.DataFrame:
     """Gets dataframe of air source heat pump subsidy options data from S3.
     There's a column for each year between 2024 and 2035 and each option
@@ -402,7 +379,7 @@ def get_ashp_subsidy_options_data() -> pd.DataFrame:
         - "smallest"
         - "no subsidy"
     For each pair of year and option, the value is the amount in GBP for subsidising the cost of getting an air source heat pump in that year.
-    
+
     Returns:
         pd.DataFrame: Dataframe of subsidy options
     """
@@ -410,6 +387,7 @@ def get_ashp_subsidy_options_data() -> pd.DataFrame:
         bucket_name="asf-lifetime-cost-model",
         s3_key="inputs/ashp_subsidy_options.csv",
     )
+
 
 def get_gas_boiler_installation_costs() -> pd.DataFrame:
     """Gets dataframe of gas boiler costs from S3.
