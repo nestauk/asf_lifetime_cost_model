@@ -4,8 +4,8 @@ These are then read in the front-end to display the scenario analysis.
 """
 
 # Local imports
-from config.scenarios import scenarios
 from asf_lifetime_cost_model import config
+from asf_lifetime_cost_model.analysis.scenarios import scenarios
 from asf_lifetime_cost_model.pipeline.lifetime_cost_calculator import (
     LifetimeCostCalculator,
 )
@@ -49,10 +49,10 @@ for cost_decile in range(10, 20, 10):
         for scenario in scenarios.keys():
             if scenario != "Cheaper electricity":
                 scenario_info = scenarios[scenario]
-                ashp_life_span = config.life_span_default["ashp"]
-                boiler_life_span = config.life_span_default["boiler"]
-                ashp_maintenance_cost = config.maintenance_costs_default["ashp"]
-                boiler_maintenance_cost = config.maintenance_costs_default["boiler"]
+                ashp_life_span = config.get("life_span_default")["ashp"]
+                boiler_life_span = config.get("life_span_default")["boiler"]
+                ashp_maintenance_cost = config.get("maintenance_costs_default")["ashp"]
+                boiler_maintenance_cost = config.get("maintenance_costs_default")["boiler"]
                 ashp_maintenance_frequency = 1.0
                 boiler_maintenance_frequency = 1.0
                 ashp_efficiency = (
@@ -62,7 +62,7 @@ for cost_decile in range(10, 20, 10):
                     if scenario_info["ashp_scop"] == "high"
                     else 2.5
                 )
-                boiler_efficiency = config.boiler_efficiency_default
+                boiler_efficiency = config.get("boiler_efficiency_default")
                 ashp_purchased_with_loan = "Yes" if scenario_info["purchasing_with_loans"] else "No"
 
                 if ashp_purchased_with_loan == "Yes":
@@ -77,7 +77,7 @@ for cost_decile in range(10, 20, 10):
                 # Processing inputs before computations
                 if ashp_purchased_with_loan == "Yes":
                     ashp_purchased_with_loan = True
-                    ashp_loan_interes_rate = config.loan_interest_rate_options.get(ashp_loan_interes_rate)
+                    ashp_loan_interes_rate = config.get("loan_interest_rate_options")[ashp_loan_interes_rate]
                 else:
                     ashp_purchased_with_loan = False
                     ashp_loan_interes_rate = 0.0
