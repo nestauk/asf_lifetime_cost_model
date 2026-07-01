@@ -1,3 +1,20 @@
+# -*- coding: utf-8 -*-
+# ---
+# jupyter:
+#   jupytext:
+#     cell_metadata_filter: -all
+#     custom_cell_magics: kql
+#     text_representation:
+#       extension: .py
+#       format_name: percent
+#       format_version: '1.3'
+#       jupytext_version: 1.11.2
+#   kernelspec:
+#     display_name: asf_lifetime_cost_model (3.13.2)
+#     language: python
+#     name: python3
+# ---
+
 # %%
 import pandas as pd
 
@@ -58,9 +75,32 @@ boiler_installation_costs = dict.fromkeys(installation_years, boiler_installatio
 # `ashp_installation_cost`
 
 # %%
+# # Assumption set 1 - assume 2.5% reduction in nominal
+# ashp_installation_cost_2026 = 13_100  # 2026 Q1, median cost of installation A2W heat pump, BUS statistics
+# nominal_reduction = 0.025  # assumption, 2.5% reduction in sticker price each year
+# inflation_rate = 0.02  # assumption
+
+# ashp_installation_costs = {}
+# ashp_installation_costs_nominal = {}
+
+# for year in installation_years:
+#     t = year - 2026
+
+#     nominal_cost = ashp_installation_cost_2026 * (1 - nominal_reduction) ** t  # cost reduction each year
+#     real_cost = (
+#         nominal_cost / (1 + inflation_rate) ** t
+#     )  # conversion to 2026 real £, adjust for inflation (shrink future money back into today's terms)
+
+#     ashp_installation_costs[year] = real_cost
+#     ashp_installation_costs_nominal[year] = nominal_cost
+
+# %%
+## Assumption set 2 - assume 2.5% reduction in real
 ashp_installation_cost_2026 = 13_100  # 2026 Q1, median cost of installation A2W heat pump, BUS statistics
-nominal_reduction = 0.025  # assumption, 2.5% reduction in sticker price each year
-inflation_rate = 0.02  # assumption
+real_reduction = 0.025  # 2.5% real reduction per year; consistent with ~2.7% observed real reduction
+# in BUS data 2022-2026 (nominal prices broadly flat over same period)
+inflation_rate = 0.02  # consistent with HMT Green Book guidance
+# https://www.gov.uk/government/publications/the-green-book-appraisal-and-evaluation-in-central-government, Table 7
 
 ashp_installation_costs = {}
 ashp_installation_costs_nominal = {}
@@ -68,10 +108,8 @@ ashp_installation_costs_nominal = {}
 for year in installation_years:
     t = year - 2026
 
-    nominal_cost = ashp_installation_cost_2026 * (1 - nominal_reduction) ** t  # cost reduction each year
-    real_cost = (
-        nominal_cost / (1 + inflation_rate) ** t
-    )  # conversion to 2026 real £, adjust for inflation (shrink future money back into today's terms)
+    real_cost = ashp_installation_cost_2026 * (1 - real_reduction) ** t  # already in 2026 real £
+    nominal_cost = real_cost * (1 + inflation_rate) ** t  # inflate back to that year's actual £
 
     ashp_installation_costs[year] = real_cost
     ashp_installation_costs_nominal[year] = nominal_cost
@@ -79,10 +117,6 @@ for year in installation_years:
 # %%
 print(ashp_installation_costs_nominal)
 print(ashp_installation_costs)
-
-# %% [markdown]
-# - Nominal installation costs: Declining only in market terms (no inflation adjustment).
-# - Installation costs expressed in real 2026 £: same nominal prices adjusted for inflation, showing purchasing-power-adjusted costs in constant 2026 money.
 
 # %% [markdown]
 # `ashp_subsidy`
@@ -180,8 +214,8 @@ def solve_breakeven_electricity_price(
 
 # %%
 # Assumptions for energy demand
-medium_tdcv_gas = 11.5  # Medium Typical Domestic Consumption Value, used for energy price cap, MWh
-# medium_tdcv_gas = 9.5  # Medium Typical Domestic Consumption Value, used for energy price cap, MWh
+# medium_tdcv_gas = 11.5  # Medium Typical Domestic Consumption Value, used for energy price cap, MWh
+medium_tdcv_gas = 9.5  # Medium Typical Domestic Consumption Value, used for energy price cap, MWh
 
 heating_gas_share = 0.97  # share of gas TDCV we are assuming is for heating
 heat_demand = medium_tdcv_gas * heating_gas_share * 1000  # kWh/year
