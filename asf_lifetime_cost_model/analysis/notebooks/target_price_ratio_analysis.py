@@ -214,11 +214,14 @@ def solve_breakeven_electricity_price(
 
 # %%
 # Assumptions for energy demand
-# medium_tdcv_gas = 11.5  # Medium Typical Domestic Consumption Value, used for energy price cap, MWh
-medium_tdcv_gas = 9.5  # Medium Typical Domestic Consumption Value, used for energy price cap, MWh
+# medium_tdcv_gas_mwh = 11.5  # Medium Typical Domestic Consumption Value, used for energy price cap, MWh
+medium_tdcv_gas_mwh = 9.5  # Medium Typical Domestic Consumption Value, MWh/year (updated July 2026)
 
-heating_gas_share = 0.97  # share of gas TDCV we are assuming is for heating
-heat_demand = medium_tdcv_gas * heating_gas_share * 1000  # kWh/year
+heating_gas_share = 0.97
+gas_demand_for_heating = medium_tdcv_gas_mwh * heating_gas_share * 1000  # kWh/year
+
+boiler_efficiency = 0.85
+heat_demand = gas_demand_for_heating * boiler_efficiency  # kWh heat/year
 
 # %% [markdown]
 # ### **April price cap gas prices**
