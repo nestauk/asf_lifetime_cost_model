@@ -1,3 +1,8 @@
+# %% [markdown]
+# ### OUTDATED NOTEBOOK
+#
+# `cost_computations.py` was replaced with `lifetime_cost_calculator.py`
+
 # %%
 from asf_lifetime_cost_model.pipeline import cost_computations
 
@@ -176,7 +181,9 @@ cost_computations.compute_upfront_cost(
 # Total maintenance costs:
 
 # %%
-cost_computations.compute_total_maintenance_cost(maintenance_cost=80, maintenance_frequency_per_year=1, life_span=15)
+cost_computations.compute_total_maintenance_cost(
+    maintenance_cost=80, maintenance_frequency_per_year=1, life_span=15
+)
 
 # %% [markdown]
 # Total lifetime cost for an air source heat pump:
@@ -247,6 +254,8 @@ cost_computations.compute_total_lifetime_costs(
 # Dictionary with breakdown of costs given a total cost, installation year and life span:
 
 # %%
-cost_computations.create_annualised_cost_time_series(cost_value=4110.897, life_span=15, purchase_year=2026)
+cost_computations.create_annualised_cost_time_series(
+    cost_value=4110.897, life_span=15, purchase_year=2026
+)
 
 # %%
