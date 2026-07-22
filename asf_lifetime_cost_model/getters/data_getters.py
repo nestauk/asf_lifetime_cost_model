@@ -19,6 +19,7 @@ from asf_levies_model.levies import LevyCollection
 from asf_levies_model.summary import create_scenario_weights_dict
 from asf_levies_model.tariffs import Tariff
 
+from asf_lifetime_cost_model import config
 from asf_lifetime_cost_model.getters.getter_utils import (
     _read_excel_to_dataframe_or_dict,
     _read_s3_csv_to_dataframe,
@@ -216,17 +217,13 @@ def get_levies(price_cap_period: str) -> LevyCollection:
     # Definining parameters that are required for levy rebalancing calculations
 
     # Total domestic energy consumption and energy customer numbers from DESNZ subnational consumption domestic data
-    # 2023 - TO MOVE TO CONFIG
     # These are to provide consistent charging bases across all levies when rebalancing
-    # Source: https://www.gov.uk/government/statistics/regional-and-local-authority-gas-consumption-statistics
-    # Source: https://www.gov.uk/government/statistics/regional-and-local-authority-electricity-consumption-statistics
-    domestic_supply_electricity = 96_517_461  # total domestic electricity consumption in MWh, GB
-    domestic_supply_gas = 266_505_188  # total domestic gas consumption in MWh, GB, non-weather corrected
-    domestic_customers_gas = 24_605_467  # number of domestic gas meters, GB
-    domestic_customers_electricity = 29_239_936  # number of domestic electricity meters, GB
-    total_supply_electricity = (
-        249_044_438  # DESNZ GB total electricity consumption, 2023, all consumption (domestic and non-domestic)
-    )
+
+    domestic_supply_electricity = config.get("domestic_supply_electricity")
+    domestic_supply_gas = config.get("domestic_supply_gas")
+    domestic_customers_gas = config.get("domestic_customers_gas")
+    domestic_customers_electricity = config.get("domestic_customers_electricity")
+    total_supply_electricity = config.get("total_supply_electricity")
 
     # Store in dictionary
     denominator_values = {
