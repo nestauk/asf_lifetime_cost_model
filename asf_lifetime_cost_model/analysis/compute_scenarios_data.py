@@ -3,16 +3,13 @@
 These are then read in the front-end to display the scenario analysis.
 """
 
-# Local imports
+import pandas as pd
+
 from asf_lifetime_cost_model import config
 from asf_lifetime_cost_model.analysis.scenarios import scenarios
 from asf_lifetime_cost_model.pipeline.lifetime_cost_calculator import (
     LifetimeCostCalculator,
 )
-
-# Package imports
-import pandas as pd
-
 
 for cost_decile in range(10, 20, 10):
     cost_calculator = LifetimeCostCalculator()
@@ -86,18 +83,6 @@ for cost_decile in range(10, 20, 10):
                     levy_rebalancing = False
                     levies_to_rebalance = None
                     levies_rebalancing_weights = None
-                elif levy_rebalancing == "remove all electricity levies to taxation":
-                    levy_rebalancing = True
-                    levies_to_rebalance = ["ro", "fit", "eco", "whd", "aahedc", "ncc"]
-                    levies_rebalancing_weights = {
-                        "electricity_weight": 0,
-                        "gas_weight": 1,
-                        "tax_weight": 0,
-                        "fixed_electricity_weight": 0,
-                        "variable_electricity_weight": 0,
-                        "fixed_gas_weight": 0,
-                        "variable_gas_weight": 1,
-                    }
                 elif levy_rebalancing == "rebalance RO and FiT from electricity to gas":
                     levy_rebalancing = True
                     levies_to_rebalance = ["ro", "fit"]
