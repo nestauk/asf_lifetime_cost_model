@@ -9,7 +9,6 @@ It includes functions to get the following data:
 - policy costs after levy rebalancing.
 """
 
-from datetime import datetime
 from typing import Tuple
 
 import asf_levies_model.getters.load_data as levies_data_getters
