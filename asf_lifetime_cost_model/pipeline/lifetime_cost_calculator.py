@@ -311,7 +311,6 @@ class LifetimeCostCalculator(object):
         installation_costs: pd.DataFrame,
         maintenance_costs: pd.DataFrame,
         running_costs: pd.DataFrame,
-        subsidy_model: Optional[str] = None,
     ) -> pd.DataFrame:
         """Computes the lifetime cost of a heating system over its lifetime.
 
@@ -349,7 +348,7 @@ class LifetimeCostCalculator(object):
         """Computes annualised cost in the lifetime of the heating system.
 
         Args:
-            life_time_costs (pd.DataFrame): DataFrame with total lifetime costs for different property archetypes.
+            total_lifetime_costs (pd.DataFrame): DataFrame with total lifetime costs for different property archetypes.
             cost_column (str): The column name in life_time_costs DataFrame to be annualised.
             life_span (int): Number of years the heating system is assumed to be operational.
             purchase_year (int): The year in which the heating system is purchased and installed.
