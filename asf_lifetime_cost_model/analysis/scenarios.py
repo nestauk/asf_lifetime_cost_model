@@ -7,44 +7,44 @@ to calculate the lifetime cost of different heating systems.
 from asf_lifetime_cost_model import config
 
 scenarios = {
-    "baseline_A": {
+    "Baseline": {
         "name": "Baseline",
         "ashp_scop": "reference",
         "ashp_subsidy": "zero from 2028",
         "ashp_annual_cost_decrease": 0.01,  # moderate, 1% annual cost decrease
         "purchasing_with_loans": True,
-        "loan_interest_rate": config.get("loan_interest_rate_default"),
+        "loan_interest_rate": config.get("loan_interest_rate_default_option"),
         "wholesale_price_projection": "reference",
-        "levy_rebalancing": "reference",
+        "levy_rebalancing": "no rebalancing (current price cap)",
     },
-    "scenario_B": {
+    "High innovation": {
         "name": "High innovation",
         "ashp_scop": "high",
         "ashp_subsidy": "fast stepdown",
         "ashp_annual_cost_decrease": 0.05,  # optimistic, 5% annual cost decrease
         "purchasing_with_loans": True,
-        "loan_interest_rate": config.get("loan_interest_rate_default"),
+        "loan_interest_rate": config.get("loan_interest_rate_default_option"),
         "wholesale_price_projection": "reference",
-        "levy_rebalancing": "",  # ?
+        "levy_rebalancing": "rebalance RO and FiT from electricity to gas",
     },
-    "scenario_C": {
+    "Cheaper electricity": {
         "name": "Cheaper electricity",
         "ashp_scop": "reference",
         "ashp_subsidy": "fast stepdown",
         "ashp_annual_cost_decrease": 0.01,  # moderate, 1% annual cost decrease
         "purchasing_with_loans": True,
-        "loan_interest_rate": config.get("loan_interest_rate_default"),
+        "loan_interest_rate": config.get("loan_interest_rate_default_option"),
         "wholesale_price_projection": "low fossil fuel prices",
-        "levy_rebalancing": "",  # ?
+        "levy_rebalancing": "rebalance RO and FiT from electricity to gas",
     },
-    "scenario_D": {
+    "High subsidy": {
         "name": "High subsidy",
         "ashp_scop": "reference",
         "ashp_subsidy": "high",
         "ashp_annual_cost_decrease": 0.01,  # moderate, 1% annual cost decrease
         "purchasing_with_loans": True,
-        "loan_interest_rate": config.get("loan_interest_rate_default"),
+        "loan_interest_rate": config.get("loan_interest_rate_default_option"),
         "wholesale_price_projection": "reference",
-        "levy_rebalancing": "",  # ?
+        "levy_rebalancing": "rebalance RO and FiT from electricity to gas",
     },
 }

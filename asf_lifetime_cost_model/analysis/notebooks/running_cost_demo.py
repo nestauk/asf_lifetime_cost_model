@@ -1,22 +1,12 @@
 # %%
 import asf_lifetime_cost_model.getters.data_getters as data_getters
 import asf_lifetime_cost_model.pipeline.running_costs as running_costs
+from asf_lifetime_cost_model.pipeline.lifetime_cost_calculator import (
+    LifetimeCostCalculator,
+)
 
 # %% [markdown]
-# #### Demonstrating the functionality of the helper functions that are used in the `compute_running_costs()` function
-
-# %% [markdown]
-# **Getting property annual demand**
-
-# %%
-data_getters.get_property_heat_demand()
-
-# %%
-running_costs.get_property_heat_demand(archetype="pre_1950_semi_terraced_house")
-
-# %%
-# Testing error message
-running_costs.get_property_heat_demand(archetype="invalid archetype")
+# #### Demonstrating the functionality of the helper functions that are used in `running_costs.py`
 
 # %% [markdown]
 # **Getting time series of DESNZ wholesale price projections to replace wholesale price component of future energy prices**
@@ -27,7 +17,9 @@ data_getters.get_desnz_wholesale_price_projections()
 # %%
 # Time series output here is after applying modelling modifications
 running_costs.get_wholesale_price_projection_series(
-    fuel_type="gas", projection_scenario="reference"
+    wholesale_prices_data_all_scenarios=data_getters.get_desnz_wholesale_price_projections(),
+    fuel_type="gas",
+    projection_scenario="low fossil fuel prices",
 ).T
 
 # %% [markdown]
@@ -50,31 +42,31 @@ electricity_tariff_time_series = {
 }
 
 # %%
-gas_tariff_time_series
-
-# %%
 # Inspecting what current gas unit cost is
 gas_tariff_time_series[2025].calculate_variable_consumption(1)
 
 # %%
-unit_cost_time_series, standing_charge_time_series = (
+# Create projection of gas unit costs over lifetime of heating system
+gas_unit_cost_time_series, gas_standing_charge_time_series = (
     running_costs.create_energy_cost_time_series(
         tariff_time_series=gas_tariff_time_series,
         fuel_type="gas",
         wholesale_prices_series=running_costs.get_wholesale_price_projection_series(
-            fuel_type="gas", projection_scenario="reference"
+            wholesale_prices_data_all_scenarios=data_getters.get_desnz_wholesale_price_projections(),
+            fuel_type="gas",
+            projection_scenario="low fossil fuel prices",
         ),
     )
 )
 
 # %%
-unit_cost_time_series
+gas_unit_cost_time_series
 
 # %% [markdown]
 # Gas unit costs get cheaper from 2025 to 2039 because the DESNZ gas wholesale price projections for "reference" scenario decrease between these years.
 
 # %%
-standing_charge_time_series
+gas_standing_charge_time_series
 
 # %% [markdown]
 # Gas standing charge remains constant because the DESNZ gas wholesale price projections only affect unit costs.
@@ -82,16 +74,18 @@ standing_charge_time_series
 # %% [markdown]
 # #### Demonstrating the functionality of the `compute_running_costs()` function
 
+# %%
+calculator = LifetimeCostCalculator()
+
 # %% [markdown]
 # **Gas boiler running costs, with no levy rebalancing**
 
 # %%
-boiler_running_costs_time_series = running_costs.compute_running_cost_time_series(
+calculator.compute_running_cost_time_series(
     purchase_year=2025,
     life_span=15,
     heating_system_efficiency=0.85,
     fuel_type="gas",
-    archetype="pre_1950_semi_terraced_house",
     wholesale_price_projection_scenario="reference",
     include_standing_charge=True,
     levy_rebalancing=False,
@@ -100,22 +94,15 @@ boiler_running_costs_time_series = running_costs.compute_running_cost_time_serie
     include_vat=True,
 )
 
-# %%
-boiler_running_costs_time_series
-
-# %%
-sum(boiler_running_costs_time_series.values())
-
 # %% [markdown]
 # **Gas boiler running costs, with levy rebalancing where the Renewables Obligation levy is rebalanced from electricity units to gas units**
 
 # %%
-boiler_running_costs_time_series = running_costs.compute_running_cost_time_series(
+calculator.compute_running_cost_time_series(
     purchase_year=2025,
     life_span=15,
     heating_system_efficiency=0.85,
     fuel_type="gas",
-    archetype="pre_1950_semi_terraced_house",
     wholesale_price_projection_scenario="reference",
     include_standing_charge=True,
     levy_rebalancing=True,
@@ -129,13 +116,8 @@ boiler_running_costs_time_series = running_costs.compute_running_cost_time_serie
         "fixed_gas_weight": 0,
         "variable_gas_weight": 1,
     },
+    include_vat=True,
 )
-
-# %%
-boiler_running_costs_time_series
-
-# %%
-sum(boiler_running_costs_time_series.values())
 
 # %% [markdown]
 # As the RO levy was rebalanced from electricity units to gas units (making gas more expensive), running a gas boiler in this scenario leads to higher running costs.
@@ -144,33 +126,28 @@ sum(boiler_running_costs_time_series.values())
 # **Air source heat pump running costs, with no levy rebalancing**
 
 # %%
-ashp_running_costs_time_series = running_costs.compute_running_cost_time_series(
+calculator.compute_running_cost_time_series(
     purchase_year=2025,
     life_span=15,
     heating_system_efficiency=3.0,
     fuel_type="electricity",
-    archetype="pre_1950_semi_terraced_house",
     wholesale_price_projection_scenario="reference",
     include_standing_charge=False,
     levy_rebalancing=False,
+    levies_to_rebalance=None,
+    levy_rebalancing_weights=None,
+    include_vat=True,
 )
-
-# %%
-ashp_running_costs_time_series
-
-# %%
-sum(ashp_running_costs_time_series.values())
 
 # %% [markdown]
 # **Air source heat pump running costs, with levy rebalancing where the Renewables Obligation levy is rebalanced from electricity units to gas units**
 
 # %%
-ashp_running_costs_time_series = running_costs.compute_running_cost_time_series(
+calculator.compute_running_cost_time_series(
     purchase_year=2025,
     life_span=15,
     heating_system_efficiency=3.0,
     fuel_type="electricity",
-    archetype="pre_1950_semi_terraced_house",
     wholesale_price_projection_scenario="reference",
     include_standing_charge=False,
     levy_rebalancing=True,
@@ -184,13 +161,8 @@ ashp_running_costs_time_series = running_costs.compute_running_cost_time_series(
         "fixed_gas_weight": 0,
         "variable_gas_weight": 1,
     },
+    include_vat=True,
 )
-
-# %%
-ashp_running_costs_time_series
-
-# %%
-sum(ashp_running_costs_time_series.values())
 
 # %% [markdown]
 # As the RO levy was rebalanced from electricity units to gas units (making electricity cheaper), running an air source heat pump in this scenario leads to lower running costs.
@@ -199,12 +171,11 @@ sum(ashp_running_costs_time_series.values())
 # **Air source heat pump running costs, with multiple levies (RO and Fit) are rebalanced from electricity units to gas units**
 
 # %%
-ashp_running_costs_time_series = running_costs.compute_running_cost_time_series(
+calculator.compute_running_cost_time_series(
     purchase_year=2025,
     life_span=15,
     heating_system_efficiency=3.0,
     fuel_type="electricity",
-    archetype="pre_1950_semi_terraced_house",
     wholesale_price_projection_scenario="reference",
     include_standing_charge=False,
     levy_rebalancing=True,
@@ -218,13 +189,8 @@ ashp_running_costs_time_series = running_costs.compute_running_cost_time_series(
         "fixed_gas_weight": 0,
         "variable_gas_weight": 1,
     },
+    include_vat=True,
 )
-
-# %%
-ashp_running_costs_time_series
-
-# %%
-sum(ashp_running_costs_time_series.values())
 
 # %% [markdown]
 # As both the RO AND FiT levies were rebalanced from electricity units to gas units (making electricity even cheaper), running an air source heat pump in this scenario leads to even lower running costs compared to just rebalancing RO only.
