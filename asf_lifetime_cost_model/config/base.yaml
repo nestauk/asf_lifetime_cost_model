@@ -1,73 +1,20 @@
-# List of possible arguments and default values for a variety of parameters
-# that enable the calculation of lifetime costs for different heating systems
+# TODO
 
-ashp_efficiency_options: [
-    "reference", # SCOP 3
-    "high", # SCOP > 3
-    "low", # SCOP < 3
-  ]
+# Year ranges
+operating_start_year: 2026
+operating_end_year: 2050
+install_start_year: 2026
+install_end_year: 2035
 
-boiler_efficiency_default: 0.85 # boiler efficiency
+# Units
+currency_unit: "£"
+energy_price_unit: "p/kWh"
+heat_demand_unit: "kWh/year"
 
-life_span_default: # in years
-  ashp: 15 # years
-  boiler: 15 # years
+# Fuel <-> system type mapping
+fuel_by_system_type:
+  air_to_water_heat_pump: electricity
+  gas_boiler: gas
 
-maintenance_costs_default:
-  ashp: 80 # GBP
-  boiler: 80 # GBP
-
-ashp_subsidy_options:
-  [
-    "flat",
-    "slow stepdown",
-    "fast stepdown",
-    "high",
-    "zero from 2028",
-    "smallest",
-    "no subsidy",
-  ]
-
-ashp_annual_cost_decrease_range: [-0.01, 0.05] # range for annual cost decrease for ASHPs -1% to +5%
-
-ashp_annual_cost_decrease_default: 0.01 # 1% annual cost decrease for ASHPs
-
-ashp_loans_options: [True, False] # whether ASHPs are purchased with loans
-
-loan_interest_rate_options:
-  {
-    "0%: fully subsidised loan": 0,
-    "5%: government borrowing or morgage": 0.05,
-    "10%: personal finance": 0.1,
-  }
-
-loan_interest_rate_default_option: "5%: government borrowing or morgage"
-
-loan_interest_rate_default: 0.05 # default loan interest rate
-
-wholesale_price_projection_options: [
-    "reference", # DESNZ_Ref
-    "low fossil fuel prices", # DESNZ_Low
-    "high fossil fuel prices", # DESNZ_High
-  ]
-
-levy_rebalancing_options:
-  [
-    "rebalance unit costs between electricity and gas",
-    "remove all electricity levies to taxation",
-  ]
-
-cost_data_reference_year: 2023 # reference year for ashp cost data
-
-installation_year_max: 2035
-
-therm_to_kwh_conversion: 29.31 # unit conversion between therm and kwh used for processing DESNZ wholesale price projection values for gas
-
-# energy consumption and customer numbers for levy rebalancing calculations - to be updated each release
-domestic_supply_electricity: 96_517_461 # total domestic electricity consumption in MWh, GB 2023
-domestic_customers_electricity: 29_239_936 # number of domestic electricity meters, GB 2023
-total_supply_electricity: 249_044_438 # DESNZ GB total electricity consumption, 2023, all consumption (domestic and non-domestic)
-# source: https://www.gov.uk/government/statistics/regional-and-local-authority-electricity-consumption-statistics
-domestic_customers_gas: 24_605_467 # number of domestic gas meters, GB 2023
-domestic_supply_gas: 266_505_188 # total domestic gas consumption in MWh, GB, non-weather corrected 2023
-# source: https://www.gov.uk/government/statistics/regional-and-local-authority-gas-consumption-statistics
+# Discounting default
+default_discount_rate: 0.035 # UK HM Treasury Green Book social discount rate
