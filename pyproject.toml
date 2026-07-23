@@ -11,12 +11,12 @@ license = { text = "MIT" }
 readme = "README.md"
 requires-python = "==3.13.*"
 dependencies = [
-    "asf-levies-model @ git+https://github.com/nestauk/asf_levies_model.git",
     "boto3>=1.39.15",
     "fsspec>=2026.6.0",
     "odfpy>=1.4.1",
     "pandas>=2.3.1",
     "pandera>=0.25.0",
+    "pyarrow>=25.0.0",
     "python-calamine>=0.4.0",
     "requests>=2.32.4",
     "s3fs>=0.4.2",
@@ -64,6 +64,3 @@ convention = "google"
 [tool.ruff.format]
 docstring-code-format = true
 docstring-code-line-length = "dynamic"
-
-[tool.uv.sources]
-asf-levies-model = { git = "https://github.com/nestauk/asf_levies_model.git" }
