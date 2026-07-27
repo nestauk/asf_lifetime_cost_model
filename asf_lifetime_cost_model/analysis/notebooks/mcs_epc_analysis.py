@@ -63,7 +63,7 @@ mcs_epc_df = _read_s3_csv_to_dataframe(
 
 # %%
 # mcs_epc_df.to_pickle("mcs_epc_df_temp.pkl")
-mcs_epc_df = pd.read_pickle("mcs_epc_df_temp.pkl")
+# mcs_epc_df = pd.read_pickle("mcs_epc_df_temp.pkl")
 
 # %% [markdown]
 # Data fields of interest (MCS):
@@ -279,7 +279,7 @@ plt.show()
 
 # %% [markdown]
 # #### 8 to 10 kW
-# - Most common capacity band in BUS stats (2022/23, 2023/24, 2024/25, 2025/26)
+# - Most common capacity band
 
 # %%
 band_subset = df[df["capacity_band"] == "8kW to 10kW"]
