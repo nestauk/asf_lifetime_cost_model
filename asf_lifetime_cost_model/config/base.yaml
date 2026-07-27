@@ -18,3 +18,6 @@ fuel_by_system_type:
 
 # Discounting default
 default_discount_rate: 0.035 # UK HM Treasury Green Book social discount rate
+
+# Inflation rate default
+default_inflation_rate: 0.02
