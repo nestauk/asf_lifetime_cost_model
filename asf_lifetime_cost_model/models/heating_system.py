@@ -164,6 +164,16 @@ class HeatingSystem:
         """Real discount factor: 1 / (1 + discount_rate) ** (year - discount_base_year)."""
         return 1 / (1 + discount_rate) ** (year - discount_base_year)
 
+    @staticmethod
+    def _annuity_factor(discount_rate: float, n: int) -> float:
+        """Factor that converts a lump-sum present value into a level annual payment.
+
+        Same maths as working out constant mortgage repayments from a loan amount.
+        """
+        if discount_rate == 0:
+            return 1 / n
+        return discount_rate / (1 - (1 + discount_rate) ** -n)
+
     # --- Running cost calculations ---
 
     def calculate_energy_demand(self, heat_demand: float) -> float:
@@ -269,6 +279,24 @@ class HeatingSystem:
             )
             for year in self.operating_years
         )
+
+    def calculate_annualised_discounted_lifetime_running_cost(
+        self,
+        heat_demand: float,
+        energy_price_trajectory: EnergyPriceTrajectory,
+        standing_charge: float = 0.0,
+        discount_rate: float = DEFAULT_DISCOUNT_RATE,
+        discount_base_year: Optional[int] = None,
+    ) -> float:
+        """Equivalent Annual Cost of just the running cost component."""
+        npv = self.calculate_discounted_lifetime_running_cost(
+            heat_demand=heat_demand,
+            energy_price_trajectory=energy_price_trajectory,
+            standing_charge=standing_charge,
+            discount_rate=discount_rate,
+            discount_base_year=discount_base_year,
+        )
+        return npv * self._annuity_factor(discount_rate=discount_rate, n=self.lifespan)
 
     # --- Capital cost calculations ---
 
@@ -389,6 +417,28 @@ class HeatingSystem:
             year=self.installation_year, discount_base_year=discount_base_year, discount_rate=discount_rate
         )
 
+    def calculate_annualised_discounted_lifetime_capital_cost(
+        self,
+        discount_rate: float = DEFAULT_DISCOUNT_RATE,
+        discount_base_year: Optional[int] = None,
+    ) -> float:
+        """Equivalent Annual Cost of just the capital cost component (principal + interest if financed)."""
+        npv = self.calculate_discounted_lifetime_capital_cost(
+            discount_rate=discount_rate, discount_base_year=discount_base_year
+        )
+        return npv * self._annuity_factor(discount_rate=discount_rate, n=self.lifespan)
+
+    def calculate_annualised_discounted_lifetime_loan_interest(
+        self,
+        discount_rate: float = DEFAULT_DISCOUNT_RATE,
+        discount_base_year: Optional[int] = None,
+    ) -> float:
+        """Equivalent Annual Cost of just the loan interest component. Raises if unfinanced."""
+        npv = self.calculate_discounted_lifetime_loan_interest(
+            discount_rate=discount_rate, discount_base_year=discount_base_year
+        )
+        return npv * self._annuity_factor(discount_rate=discount_rate, n=self.lifespan)
+
     # --- Maintenance cost calculations ---
 
     def calculate_annual_maintenance_cost(self) -> float:
@@ -435,6 +485,17 @@ class HeatingSystem:
             )
             for year in self.operating_years
         )
+
+    def calculate_annualised_discounted_lifetime_maintenance_cost(
+        self,
+        discount_rate: float = DEFAULT_DISCOUNT_RATE,
+        discount_base_year: Optional[int] = None,
+    ) -> float:
+        """Equivalent Annual Cost of just the maintenance cost component."""
+        npv = self.calculate_discounted_lifetime_maintenance_cost(
+            discount_rate=discount_rate, discount_base_year=discount_base_year
+        )
+        return npv * self._annuity_factor(discount_rate=discount_rate, n=self.lifespan)
 
     # --- Total lifetime cost calculations ---
 
@@ -519,7 +580,7 @@ class HeatingSystem:
         self,
         heat_demand: float,
         energy_price_trajectory: EnergyPriceTrajectory,
-        standing_charge: float = 0.0,  # p/day, real terms. Flat for now; may become a trajectory later.
+        standing_charge: float = 0.0,
         discount_rate: float = DEFAULT_DISCOUNT_RATE,
         discount_base_year: Optional[int] = None,
     ) -> float:
@@ -539,13 +600,7 @@ class HeatingSystem:
             discount_rate=discount_rate,
             discount_base_year=discount_base_year,
         )
-        n = self.lifespan
-
-        if discount_rate == 0:
-            return npv / n
-
-        r = discount_rate
-        return npv * r / (1 - (1 + r) ** -n)
+        return npv * self._annuity_factor(discount_rate=discount_rate, n=self.lifespan)
 
     def __repr__(self) -> str:
         """Return a string representation showing the system's key attributes and costs."""
