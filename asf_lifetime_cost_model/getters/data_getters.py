@@ -67,3 +67,43 @@ def get_latest_price_cap_rate(fuel: str) -> float:
         raise ValueError(f"Expected exactly 1 matching row for fuel={fuel!r}, found {len(result)}")
 
     return float(result.iloc[0])
+
+
+def get_latest_price_cap_standing_charge(fuel: str) -> float:
+    """Get the latest price cap rate from S3, in p/day.
+
+    Finds the most recently modified .parquet file under the fixed price
+    cap prefix, then filters to the given fuel, GB average tariff component,
+    and the latest 28AD Charge Restriction Period.
+
+    Args:
+        fuel: "gas" or "electricity"
+
+    Returns:
+        float: The latest price cap rate, in p/day.
+
+    Raises:
+        ValueError: If zero or more than one matching row is found
+    """
+    latest_gold = _read_s3_parquet_to_dataframe(
+        bucket_name="asf-mission-data-prod",
+        s3_key="data/gold/energy_price_cap_levels/annex_9/latest/tariff_component_rates/tariff_component_rates.parquet",
+    )
+
+    fuel_value = "Gas" if fuel == "gas" else "Electricity: Single-Rate Metering Arrangement"
+
+    filtered = latest_gold[
+        (latest_gold["Fuel"] == fuel_value)
+        & (latest_gold["Tariff component"] == "Total_GB average")
+        & (latest_gold["Payment method"] == "Other Payment Method")
+        & (latest_gold["Type"] == "Standing charge")
+        & (latest_gold["Unit"] == "p/day")
+    ]
+
+    latest_period_end = filtered["28AD Charge Restriction Period end"].max()
+    result = filtered[filtered["28AD Charge Restriction Period end"] == latest_period_end]["value"]
+
+    if len(result) != 1:
+        raise ValueError(f"Expected exactly 1 matching row for fuel={fuel!r}, found {len(result)}")
+
+    return float(result.iloc[0])
