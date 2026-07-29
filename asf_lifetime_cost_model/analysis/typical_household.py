@@ -95,7 +95,7 @@ def load_latest_gas_standing_charge() -> float:
 
 
 # ---------------------------------------------------------------------------
-# 2. Build trajectories (once, shared across all installation years)
+# 2. Build trajectories
 # ---------------------------------------------------------------------------
 ashp_installation_costs = InstallationCostTrajectory(
     "air_to_water_heat_pump", starting_cost=ASHP_INSTALLATION_COST_2026, price_basis="real", base_year=BASE_YEAR
@@ -124,7 +124,7 @@ gas_standing_charge = load_latest_gas_standing_charge()
 
 
 # ---------------------------------------------------------------------------
-# 3. Build HeatingSystem + Household for each installation year
+# 3. Build HeatingSystem for each installation year
 # ---------------------------------------------------------------------------
 def build_systems_for_year(
     installation_year: int,
@@ -177,7 +177,7 @@ def build_systems_for_year(
 
 
 # ---------------------------------------------------------------------------
-# 4a. Comparison tab — cost breakdown (upfront / maintenance / running) side by side
+# 4a. Comparison tab of cost breakdown
 # ---------------------------------------------------------------------------
 def build_comparison_rows(installation_year: int) -> list[dict]:
     """Build tidy rows: one row per (installation_year, system, metric)."""
@@ -270,7 +270,7 @@ comparison_df = pd.DataFrame(comparison_rows)
 
 
 # ---------------------------------------------------------------------------
-# 4b. Annual breakdown tab — discounted cost of ownership for each individual operating year
+# 4b. Annual breakdown tab with discounted cost of ownership for each individual operating year
 #
 # All figures discounted to present value using discount_base_year=installation_year
 # ---------------------------------------------------------------------------
@@ -352,7 +352,7 @@ annual_breakdown_rows = [
 annual_breakdown_df = pd.DataFrame(annual_breakdown_rows)
 
 # ---------------------------------------------------------------------------
-# 4c. Summary tab — EAC at a glance, installation years x systems
+# 4c. Summary tab with equivalent annual cost for each system in each installation year
 # ---------------------------------------------------------------------------
 eac_summary_df = comparison_df[comparison_df["metric"] == "Annualised discounted lifetime cost (EAC)"].pivot(
     index="installation_year", columns="system", values="value"
@@ -376,7 +376,7 @@ eac_summary_df = eac_summary_df.round(0)
 eac_summary_df.index.name = "Installation year"
 
 # ---------------------------------------------------------------------------
-# 5. Output — one Excel workbook, three tabs
+# 5. Save out to Excel in separate tabs
 # ---------------------------------------------------------------------------
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -400,7 +400,7 @@ with pd.ExcelWriter(OUTPUT_PATH, engine="openpyxl") as writer:
 print(f"Results saved to {OUTPUT_PATH}")
 
 # ---------------------------------------------------------------------------
-# 6. Plot — EAC by installation year, for each heating system
+# 6. Plot: EAC by installation year, for each heating system
 # ---------------------------------------------------------------------------
 eac_df = comparison_df[comparison_df["metric"] == "Annualised discounted lifetime cost (EAC)"]
 
@@ -420,7 +420,7 @@ eac_chart.save(str(OUTPUT_DIR / "eac_by_installation_year.html"))
 print(f"Plot saved to {OUTPUT_DIR / 'eac_by_installation_year.html'}")
 
 # ---------------------------------------------------------------------------
-# 7. Plot — EAC component breakdown by system, installation_year=2026,
+# 7. Plot: EAC component breakdown by system, installation_year=2026,
 # with a dashed box + annotation showing the subsidy's effect on the heat pump
 # ---------------------------------------------------------------------------
 breakdown_year = 2026
@@ -530,7 +530,7 @@ full_chart.save(str(OUTPUT_DIR / f"eac_breakdown_with_subsidy_effect_{breakdown_
 print(f"Plot saved to {OUTPUT_DIR / f'eac_breakdown_with_subsidy_effect_{breakdown_year}.html'}")
 
 # ---------------------------------------------------------------------------
-# 8. Plot — cashflow by year of ownership, installation_year=2026
+# 8. Plot: cashflow by year of ownership, installation_year=2026
 # ---------------------------------------------------------------------------
 cashflow_df = annual_breakdown_df[annual_breakdown_df["installation_year"] == 2026].copy()
 cashflow_df["year_of_ownership"] = cashflow_df["operating_year"] - cashflow_df["installation_year"]
