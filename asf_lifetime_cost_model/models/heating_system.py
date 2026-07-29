@@ -448,9 +448,24 @@ class HeatingSystem:
         """
         return self.maintenance_cost_per_visit * self.maintenance_annual_frequency
 
+    def calculate_maintenance_cost_for_year(self, year: int) -> float:
+        """Maintenance cost for a specific year, undiscounted, real terms.
+
+        Returns 0.0 for the installation year itself (new systems are
+        typically still under warranty, with no maintenance cost yet).
+        Raises if year is outside this system's operating_years.
+        """
+        self._validate_year_in_operating_years(year=year)
+        if year == self.installation_year:
+            return 0.0
+        return self.calculate_annual_maintenance_cost()
+
     def calculate_lifetime_maintenance_cost(self) -> float:
-        """Total (undiscounted) maintenance cost summed across every year of operation, real terms."""
-        return self.calculate_annual_maintenance_cost() * len(self.operating_years)
+        """Total (undiscounted) maintenance cost summed across every year of operation, real terms.
+
+        Excludes the installation year (assumed no maintenance cost).
+        """
+        return self.calculate_annual_maintenance_cost() * (len(self.operating_years) - 1)
 
     def calculate_discounted_maintenance_cost(
         self,
@@ -460,12 +475,13 @@ class HeatingSystem:
     ) -> float:
         """Maintenance cost for a single year, discounted back to discount_base_year.
 
+        Returns zero for the installation year.
         Raises if year is outside this system's operating_years.
         """
         self._validate_year_in_operating_years(year=year)
         discount_base_year = discount_base_year if discount_base_year is not None else self.installation_year
-        annual_maintenance_cost = self.calculate_annual_maintenance_cost()
-        return annual_maintenance_cost * self._discount_factor(
+        maintenance_cost = self.calculate_maintenance_cost_for_year(year=year)
+        return maintenance_cost * self._discount_factor(
             year=year, discount_base_year=discount_base_year, discount_rate=discount_rate
         )
 
