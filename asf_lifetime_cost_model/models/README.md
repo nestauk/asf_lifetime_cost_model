@@ -35,7 +35,7 @@ EnergyPriceTrajectory          InstallationCostTrajectory        SubsidyTrajecto
                         |     Cost calculations            |
                         |----------------------------------|
                         | running / maintenance / capital  |
-                        | lifetime / discounted / EAC**      |
+                        | lifetime / discounted / EAC**    |
                         +----------------------------------+
                                         |
                                         v
