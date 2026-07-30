@@ -91,6 +91,14 @@ class EnergyPriceTrajectory:
         """Return the full price trajectory as a year-indexed pd.Series."""
         return self.prices.copy()
 
+    def apply_percentage_discount(self, discount_rate: float) -> None:
+        """Apply a flat percentage discount to every year's price, in place.
+
+        E.g. discount_rate=0.15 reduces every year's price by 15%
+        (representing a time-of-use tariff discount on the unit rate).
+        """
+        self.prices = self.prices * (1 - discount_rate)
+
     def __repr__(self) -> str:
         """Return a string representation showing the fuel, unit, price basis (and base year if real), and full price trajectory."""
         prices_str = ", ".join(f"{year}: {price:.2f}" for year, price in self.prices.items())
