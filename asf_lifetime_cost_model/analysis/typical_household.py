@@ -44,6 +44,8 @@ ASHP_HEAT_DEMAND_UPLIFT = 0.08  # Adjusts ASHP heat demand relative to gas boile
 ASHP_INTEREST_RATE = 0.05
 ASHP_LOAN_TERM = 15
 
+ASHP_ELECTRICITY_TOU_TARIFF_DISCOUNT = 0.15  # 15% saving on unit rate, assumed for ASHP owners on a ToU tariff
+
 BOILER_EFFICIENCY = 0.85
 BOILER_LIFESPAN = 15
 BOILER_INSTALLATION_COST_2026 = 3_000  # £, 2026 real, flat (0% real change)
@@ -117,6 +119,15 @@ boiler_subsidies = load_gas_boiler_subsidy_trajectory()
 electricity_prices = load_latest_energy_price_trajectory("electricity")  # flat at current
 gas_prices = load_latest_energy_price_trajectory("gas")  # flat at current
 
+ashp_electricity_prices = EnergyPriceTrajectory(
+    "electricity",
+    starting_price=electricity_prices.get_price(year=BASE_YEAR),
+    price_basis="real",
+    base_year=BASE_YEAR,
+)
+ashp_electricity_prices.prices = electricity_prices.prices.copy()
+ashp_electricity_prices.apply_percentage_discount(ASHP_ELECTRICITY_TOU_TARIFF_DISCOUNT)
+
 ashp_heat_demand = ASHP_SPACE_HEAT_DEMAND + ASHP_DOMESTIC_HOT_WATER_HEAT_DEMAND  # already includes ASHP uplift
 boiler_heat_demand = ashp_heat_demand / (1 + ASHP_HEAT_DEMAND_UPLIFT)  # baseline demand, uplift removed
 
@@ -186,9 +197,9 @@ def build_comparison_rows(installation_year: int) -> list[dict]:
     )
 
     systems = {
-        "Heat pump": (heat_pump, ashp_heat_demand, electricity_prices, {}),
-        "Heat pump (financed)": (heat_pump_financed, ashp_heat_demand, electricity_prices, {}),
-        "Heat pump (no subsidy)": (heat_pump_no_subsidy, ashp_heat_demand, electricity_prices, {}),
+        "Heat pump": (heat_pump, ashp_heat_demand, ashp_electricity_prices, {}),
+        "Heat pump (financed)": (heat_pump_financed, ashp_heat_demand, ashp_electricity_prices, {}),
+        "Heat pump (no subsidy)": (heat_pump_no_subsidy, ashp_heat_demand, ashp_electricity_prices, {}),
         "Gas boiler": (gas_boiler, boiler_heat_demand, gas_prices, {}),
         "Gas boiler (incl. gas standing charge)": (
             gas_boiler,
@@ -611,20 +622,43 @@ opex_chart = (
 
 cashflow_chart = alt.hconcat(year0_chart, opex_chart).resolve_scale(color="independent")
 
-# --- Price ratio table, as a small text-mark chart beneath ---
+# --- Price ratio table, as two labeled text-mark rows beneath the cashflow charts ---
 years_shown = [2026 + y for y in sorted(cashflow_df["year_of_ownership"].unique())]
-price_ratio_df = pd.DataFrame(
-    {
-        "year": years_shown,
-        "ratio": [electricity_prices.get_price(year=year) / gas_prices.get_price(year=year) for year in years_shown],
-    }
+
+price_ratio_df = pd.concat(
+    [
+        pd.DataFrame(
+            {
+                "year": years_shown,
+                "rate_type": "Price cap electricity rate",
+                "ratio": [
+                    electricity_prices.get_price(year=year) / gas_prices.get_price(year=year) for year in years_shown
+                ],
+            }
+        ),
+        pd.DataFrame(
+            {
+                "year": years_shown,
+                "rate_type": "ASHP effective electricity rate",
+                "ratio": [
+                    ashp_electricity_prices.get_price(year=year) / gas_prices.get_price(year=year)
+                    for year in years_shown
+                ],
+            }
+        ),
+    ],
+    ignore_index=True,
 )
 
 price_ratio_chart = (
     alt.Chart(price_ratio_df)
     .mark_text(fontSize=11)
-    .encode(x=alt.X("year:O", title=None), text=alt.Text("ratio:Q", format=".2f"))
-    .properties(width=980, height=40, title="Electricity/gas price ratio by year")
+    .encode(
+        x=alt.X("year:O", title=None),
+        y=alt.Y("rate_type:N", title=None, axis=alt.Axis(labelLimit=200)),
+        text=alt.Text("ratio:Q", format=".2f"),
+    )
+    .properties(width=980, height=80, title="Electricity/gas price ratio by year")
 )
 
 full_cashflow_chart = alt.vconcat(cashflow_chart, price_ratio_chart)
