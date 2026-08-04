@@ -186,8 +186,7 @@ actually landed.
 (`calculate_annualised_discounted_lifetime_cost`) is the financially
 correct version: it takes the _discounted_ lifetime cost (present value)
 and converts it into a single, level annual payment whose present value
-equals that same total. It uses the standard annuity formula, `EAC = NPV * r / (1 - (1 + r) ** -n)`. This is the same calculation used to work out
-constant mortgage repayments from a loan amount.
+equals that same total. It uses the annuity-due formula, `EAC = NPV * r / ((1 + r) * (1 - (1 + r) ** -n))` — matching this model's discounting convention, where the first operating year is undiscounted. This is a close variant of the formula used to work out constant mortgage repayments from a loan amount.
 
 EAC is the right metric for comparing heating systems, because it
 correctly accounts for the fact that a heat pump (large upfront cost, low
@@ -206,9 +205,11 @@ A `HeatingSystem` can be either:
 - **Unfinanced** (`interest_rate=None`, `loan_term=None`): the full
   `upfront_cost` (installation cost minus subsidy) is paid as a single
   lump sum in the installation year.
-- **Financed** (`interest_rate` and `loan_term` both provided): the
-  `upfront_cost` is spread into equal annual loan repayments over
-  `loan_term` years, calculated via the standard annuity formula. This
+- **Financed** (`interest_rate` and `loan_term` both provided): the loan
+  is assumed to cover 100% of `upfront_cost` with **no deposit is modeled**.
+  Repayments begin one year after installation (interest accrues from day
+  one, but nothing is due until one full period has elapsed) and are
+  spread evenly over `loan_term` years via the standard annuity formula. This
   means:
   - `calculate_annual_loan_repayment()`: the flat yearly repayment
     amount, which is _larger_ than `upfront_cost / loan_term`, since it
@@ -221,4 +222,4 @@ A `HeatingSystem` can be either:
 
 ---
 
-**Last updated: Elysia Lucas (29/07/2026)**
+**Last updated: Elysia Lucas (04/08/2026)**

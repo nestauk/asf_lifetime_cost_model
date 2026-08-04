@@ -50,8 +50,10 @@ class HeatingSystem:
     different base years, would silently give a wrong answer.
 
     Optionally financed via a loan (interest_rate + loan_term): if provided,
-    upfront_cost is spread into equal annual repayments over the loan term
-    instead of being paid as a lump sum in the installation year.
+    the loan is assumed to cover 100% of upfront_cost as no deposit is
+    modeled. Repayments begin one year after installation (interest accrues
+    from day one, but nothing is due until one full period has elapsed),
+    spread evenly over loan_term years using the standard annuity formula.
     """
 
     def __init__(
@@ -65,7 +67,8 @@ class HeatingSystem:
         maintenance_cost_per_visit: float,  # £, real terms
         maintenance_annual_frequency: float,  # visits per year, e.g. 1.0 = annual, 0.5 = every 2 years
         interest_rate: Optional[float] = None,  # annual rate, e.g. 0.05 for 5%. None = no loan (pay upfront)
-        loan_term: Optional[int] = None,  # years to repay over. None = no loan (pay upfront)
+        loan_term: Optional[int] = None,  # years to repay over, starting 1 year after installation. None = no loan
+        # NOTE: if financed, the loan is assumed to cover 100% of upfront_cost and no deposit is modeled.
     ) -> None:
         """Instantiate heating system, looking up installation cost and subsidy for installation_year."""
         if system_type not in FUEL_BY_SYSTEM_TYPE:
@@ -170,11 +173,15 @@ class HeatingSystem:
     def _annuity_factor(discount_rate: float, n: int) -> float:
         """Factor that converts a lump-sum present value into a level annual payment.
 
-        Same maths as working out constant mortgage repayments from a loan amount.
+        Uses the annuity-due convention (payment at the start of each period,
+        t=0 through n-1), where the first year (t=0, the installation year) is always
+        undiscounted. This differs from the standard "ordinary annuity"
+        formula (payment at the end of each period, t=1 through n, used e.g.
+        for constant mortgage repayments) by a factor of (1 + discount_rate).
         """
         if discount_rate == 0:
             return 1 / n
-        return discount_rate / (1 - (1 + discount_rate) ** -n)
+        return discount_rate / ((1 + discount_rate) * (1 - (1 + discount_rate) ** -n))
 
     # --- Running cost calculations ---
 
@@ -326,14 +333,18 @@ class HeatingSystem:
     ) -> float:
         """Loan repayment for a single year, discounted back to discount_base_year.
 
+        Repayments run from installation_year + 1 through installation_year +
+        loan_term (i.e. the first repayment falls one year after installation.
+        Interest accrues from day one, but nothing is due until one full
+        period has elapsed.
+
         Raises if this system isn't financed, or if year falls outside the
-        loan's actual repayment period (installation_year to
-        installation_year + loan_term - 1).
+        loan's actual repayment period.
         """
         if not self.is_financed:
             raise ValueError("This HeatingSystem was not financed via a loan (interest_rate/loan_term were None)")
 
-        repayment_years = range(self.installation_year, self.installation_year + self.loan_term)
+        repayment_years = range(self.installation_year + 1, self.installation_year + self.loan_term + 1)
         if year not in repayment_years:
             raise ValueError(
                 f"year {year} is outside this loan's repayment period "
@@ -408,7 +419,7 @@ class HeatingSystem:
         discount_base_year = discount_base_year if discount_base_year is not None else self.installation_year
 
         if self.is_financed:
-            repayment_years = range(self.installation_year, self.installation_year + self.loan_term)
+            repayment_years = range(self.installation_year + 1, self.installation_year + self.loan_term + 1)
             return sum(
                 self.calculate_discounted_loan_repayment(
                     year=year, discount_rate=discount_rate, discount_base_year=discount_base_year
@@ -605,9 +616,12 @@ class HeatingSystem:
         """Equivalent Annual Cost (EAC): a level annual amount, over the system's lifespan.
 
         Unlike calculate_annualised_lifetime_cost (which divides the
-        undiscounted total by the number of years), this accounts
-        for the fact that later years' costs are worth less today by using
-        the standard annuity formula: EAC = NPV * r / (1 - (1 + r) ** -n).
+        undiscounted total by the number of years), this accounts for the
+        fact that later years' costs are worth less today, using the
+        annuity-due formula (see _annuity_factor): EAC = NPV * r / ((1 + r)
+        * (1 - (1 + r) ** -n)). The annuity-due convention matches this
+        model's discounting, where the first operating year (t=0) is
+        undiscounted.
 
         Heat demand in kWh/year.
         """

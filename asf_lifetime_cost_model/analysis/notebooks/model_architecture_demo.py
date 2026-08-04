@@ -207,7 +207,7 @@ heat_pump_financed.calculate_annual_loan_repayment()
 
 # %%
 # get discounted loan repayment for a given year
-heat_pump_financed.calculate_discounted_loan_repayment(year=2026)
+heat_pump_financed.calculate_discounted_loan_repayment(year=2027)
 
 # %%
 # get discounted loan repayment for a given year

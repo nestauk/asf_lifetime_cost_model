@@ -44,7 +44,7 @@ ASHP_HEAT_DEMAND_UPLIFT = 0.08  # Adjusts ASHP heat demand relative to gas boile
 # between the two systems. Source: https://www.sciencedirect.com/science/article/pii/S037877882100061X
 
 ASHP_INTEREST_RATE = 0.05
-ASHP_LOAN_TERM = 15
+ASHP_LOAN_TERM = 10
 
 ASHP_ELECTRICITY_TOU_TARIFF_DISCOUNT = 0.15  # 15% saving on unit rate, assumed for ASHP owners on a ToU tariff
 
@@ -290,7 +290,13 @@ comparison_df = pd.DataFrame(comparison_rows)
 # All figures discounted to present value using discount_base_year=installation_year
 # ---------------------------------------------------------------------------
 def build_annual_breakdown_rows(installation_year: int) -> list[dict]:
-    """Build tidy rows: one row per (installation_year, operating_year, system, metric)."""
+    """Build tidy rows: one row per (installation_year, operating_year, system, metric).
+
+    Covers every year the system is operating, PLUS any additional years where
+    a loan is still being repaid after the system's operational life has ended
+    (running/maintenance cost is 0.0 in those post-lifespan years, since the
+    system itself is no longer in use — only the loan repayment continues).
+    """
     heat_pump, heat_pump_financed, heat_pump_no_subsidy, gas_boiler = build_systems_for_year(
         installation_year=installation_year
     )
@@ -310,27 +316,51 @@ def build_annual_breakdown_rows(installation_year: int) -> list[dict]:
 
     rows = []
     for system_name, (system, heat_demand, energy_price_trajectory, extra_kwargs) in systems.items():
-        for operating_year in system.operating_years:
-            discounted_running_cost = system.calculate_discounted_running_cost(
-                year=operating_year,
-                heat_demand=heat_demand,
-                energy_price_trajectory=energy_price_trajectory,
-                discount_rate=DISCOUNT_RATE,
-                **extra_kwargs,
-            )
-            discounted_maintenance_cost = system.calculate_discounted_maintenance_cost(
-                year=operating_year, discount_rate=DISCOUNT_RATE
-            )
+        operating_years = set(system.operating_years)
+
+        if system.is_financed:
+            loan_start_year = system.installation_year + 1
+            loan_end_year = system.installation_year + system.loan_term
+            loan_repayment_years = set(range(loan_start_year, loan_end_year + 1))
+        else:
+            loan_repayment_years = set()
+
+        # Full year range to report on: every operating year, plus any loan
+        # repayment years that fall outside the system's operational life
+        years_to_report = sorted(operating_years | loan_repayment_years)
+
+        for operating_year in years_to_report:
+            is_operating_this_year = operating_year in operating_years
+
+            if is_operating_this_year:
+                discounted_running_cost = system.calculate_discounted_running_cost(
+                    year=operating_year,
+                    heat_demand=heat_demand,
+                    energy_price_trajectory=energy_price_trajectory,
+                    discount_rate=DISCOUNT_RATE,
+                    **extra_kwargs,
+                )
+                discounted_maintenance_cost = system.calculate_discounted_maintenance_cost(
+                    year=operating_year, discount_rate=DISCOUNT_RATE
+                )
+            else:
+                # System's operational life has ended (e.g. loan outlives the equipment) —
+                # no running or maintenance cost attributed to this system in this year.
+                discounted_running_cost = 0.0
+                discounted_maintenance_cost = 0.0
 
             # Capital/financing cashflow, actually paid in THIS specific year:
             if system.is_financed:
-                loan_end_year = system.installation_year + system.loan_term - 1
-                if operating_year <= loan_end_year:
+                loan_start_year = system.installation_year + 1
+                loan_end_year = system.installation_year + system.loan_term
+                if loan_start_year <= operating_year <= loan_end_year:
                     discounted_capital_cost = system.calculate_discounted_loan_repayment(
                         year=operating_year, discount_rate=DISCOUNT_RATE
                     )
                 else:
-                    discounted_capital_cost = 0.0  # loan already fully repaid by this year
+                    # either before the first repayment is due (installation year itself),
+                    # or the loan is already fully repaid by this year
+                    discounted_capital_cost = 0.0
             else:
                 # unfinanced: the full upfront cost lands entirely in the installation year
                 discounted_capital_cost = (
@@ -346,6 +376,7 @@ def build_annual_breakdown_rows(installation_year: int) -> list[dict]:
                 "Discounted annual cost": (
                     discounted_running_cost + discounted_maintenance_cost + discounted_capital_cost
                 ),
+                "System operating this year": is_operating_this_year,
             }
             for metric_name, value in metrics.items():
                 rows.append(
@@ -560,6 +591,9 @@ systems_to_show = [
 cashflow_df = cashflow_df[cashflow_df["system"].isin(systems_to_show)]
 
 # --- Year 0: stacked bar, one bar per system, broken down by component ---
+# Note: for financed systems, capital cost is £0 in year 0 and the loan is
+# assumed to cover 100% of upfront_cost (no deposit modeled), and the first
+# repayment isn't due until year 1.
 year0_component_metrics = ["Discounted capital cost", "Discounted maintenance cost", "Discounted running cost"]
 year0_df = cashflow_df[(cashflow_df["year_of_ownership"] == 0) & (cashflow_df["metric"].isin(year0_component_metrics))]
 
@@ -599,7 +633,13 @@ year0_labels = (
 )
 
 year0_chart = (year0_bar + year0_labels).properties(
-    width=280, height=450, title=["Year 0: installation", "(capex + first year of operation, present value 2026 £)"]
+    width=280,
+    height=450,
+    title=[
+        "Year 0: installation",
+        "(running + maintenance for all systems; capital cost only for",
+        "unfinanced systems — financed loans start repayment in year 1)",
+    ],
 )
 
 # --- Years 1-14: subsequent years of operation ---
