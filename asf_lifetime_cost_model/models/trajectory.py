@@ -108,7 +108,7 @@ class BaseTrajectory:
         )
         return (
             f"{self.__class__.__name__}({self._identifier_name}={self._identifier_value!r}, "
-            f"unit={self.UNIT!r}, price_basis={basis_str}, values={{{vals_str}}})"
+            f"unit={self.UNIT!r}, price_basis={basis_str}, {self.VALUES_LABEL}={{{vals_str}}})"
         )
 
 
@@ -122,6 +122,7 @@ class SubsidyTrajectory(BaseTrajectory):
     """
 
     UNIT = config["currency_unit"]
+    VALUES_LABEL = "subsidy"
 
     def __init__(
         self, system_type: str, starting_subsidy: float, price_basis: str = "nominal", base_year: int | None = None
@@ -154,6 +155,7 @@ class InstallationCostTrajectory(BaseTrajectory):
     """
 
     UNIT = config["currency_unit"]
+    VALUES_LABEL = "installation_cost"
 
     def __init__(
         self, system_type: str, starting_cost: float, price_basis: str = "nominal", base_year: int | None = None
@@ -186,6 +188,7 @@ class EnergyPriceTrajectory(BaseTrajectory):
     """
 
     UNIT = config["energy_price_unit"]
+    VALUES_LABEL = "prices"
 
     def __init__(
         self, fuel: str, starting_price: float, price_basis: str = "nominal", base_year: int | None = None

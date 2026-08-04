@@ -19,10 +19,12 @@
 import pandas as pd
 
 import asf_lifetime_cost_model.getters.data_getters as data_getters
-from asf_lifetime_cost_model.models.energy_price_trajectory import EnergyPriceTrajectory
+from asf_lifetime_cost_model.models.trajectory import (
+    EnergyPriceTrajectory,
+    InstallationCostTrajectory,
+    SubsidyTrajectory,
+)
 from asf_lifetime_cost_model.models.heating_system import HeatingSystem
-from asf_lifetime_cost_model.models.installation_cost_trajectory import InstallationCostTrajectory
-from asf_lifetime_cost_model.models.subsidy_trajectory import SubsidyTrajectory
 
 from asf_lifetime_cost_model import config
 
@@ -125,10 +127,10 @@ heat_pump.calculate_discounted_running_cost(
 )
 
 # %%
-# error is raised if you try to get a running cost for a year that is outside its lifetime
-heat_pump.calculate_discounted_running_cost(
-    year=2045, heat_demand=heat_demand_with_heat_pump, energy_price_trajectory=electricity_prices
-)
+# # error is raised if you try to get a running cost for a year that is outside its lifetime
+# heat_pump.calculate_discounted_running_cost(
+#     year=2045, heat_demand=heat_demand_with_heat_pump, energy_price_trajectory=electricity_prices
+# )
 
 # %%
 # lifetime running cost
@@ -143,8 +145,8 @@ heat_pump.calculate_discounted_lifetime_running_cost(heat_demand_with_heat_pump,
 heat_pump.calculate_lifetime_capital_cost()
 
 # %%
-# raises error if you use a method related to loan interest/repayments
-heat_pump.calculate_annual_loan_repayment()
+# # raises error if you use a method related to loan interest/repayments
+# heat_pump.calculate_annual_loan_repayment()
 
 # %%
 # maintenance cost (undiscounted, average annual)

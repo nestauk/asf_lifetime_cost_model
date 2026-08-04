@@ -15,10 +15,12 @@ import pandas as pd
 
 import asf_lifetime_cost_model.getters.data_getters as data_getters
 from asf_lifetime_cost_model import config
-from asf_lifetime_cost_model.models.energy_price_trajectory import EnergyPriceTrajectory
 from asf_lifetime_cost_model.models.heating_system import HeatingSystem
-from asf_lifetime_cost_model.models.installation_cost_trajectory import InstallationCostTrajectory
-from asf_lifetime_cost_model.models.subsidy_trajectory import SubsidyTrajectory
+from asf_lifetime_cost_model.models.trajectory import (
+    EnergyPriceTrajectory,
+    InstallationCostTrajectory,
+    SubsidyTrajectory,
+)
 
 alt.data_transformers.disable_max_rows()  # comparison_df/annual_breakdown_df can exceed Altair's default 5000-row cap
 
@@ -125,8 +127,10 @@ ashp_electricity_prices = EnergyPriceTrajectory(
     price_basis="real",
     base_year=BASE_YEAR,
 )
-ashp_electricity_prices.prices = electricity_prices.prices.copy()
+ashp_electricity_prices.series = electricity_prices.prices.copy()
 ashp_electricity_prices.apply_percentage_discount(ASHP_ELECTRICITY_TOU_TARIFF_DISCOUNT)
+assert ashp_electricity_prices.price_basis == electricity_prices.price_basis
+assert ashp_electricity_prices.base_year == electricity_prices.base_year
 
 ashp_heat_demand = ASHP_SPACE_HEAT_DEMAND + ASHP_DOMESTIC_HOT_WATER_HEAT_DEMAND  # already includes ASHP uplift
 boiler_heat_demand = ashp_heat_demand / (1 + ASHP_HEAT_DEMAND_UPLIFT)  # baseline demand, uplift removed
@@ -292,9 +296,9 @@ def build_annual_breakdown_rows(installation_year: int) -> list[dict]:
     )
 
     systems = {
-        "Heat pump (no subsidy)": (heat_pump_no_subsidy, ashp_heat_demand, electricity_prices, {}),
-        "Heat pump": (heat_pump, ashp_heat_demand, electricity_prices, {}),
-        "Heat pump (financed)": (heat_pump_financed, ashp_heat_demand, electricity_prices, {}),
+        "Heat pump (no subsidy)": (heat_pump_no_subsidy, ashp_heat_demand, ashp_electricity_prices, {}),
+        "Heat pump": (heat_pump, ashp_heat_demand, ashp_electricity_prices, {}),
+        "Heat pump (financed)": (heat_pump_financed, ashp_heat_demand, ashp_electricity_prices, {}),
         "Gas boiler": (gas_boiler, boiler_heat_demand, gas_prices, {}),
         "Gas boiler (incl. gas standing charge)": (
             gas_boiler,

@@ -15,9 +15,11 @@ years can be safely summed and discounted using a single real discount rate.
 from typing import Optional, Union
 
 from asf_lifetime_cost_model import config
-from asf_lifetime_cost_model.models.energy_price_trajectory import EnergyPriceTrajectory
-from asf_lifetime_cost_model.models.installation_cost_trajectory import InstallationCostTrajectory
-from asf_lifetime_cost_model.models.subsidy_trajectory import SubsidyTrajectory
+from asf_lifetime_cost_model.models.trajectory import (
+    EnergyPriceTrajectory,
+    InstallationCostTrajectory,
+    SubsidyTrajectory,
+)
 
 FUEL_BY_SYSTEM_TYPE = config["fuel_by_system_type"]
 DEFAULT_DISCOUNT_RATE = config["default_discount_rate"]
