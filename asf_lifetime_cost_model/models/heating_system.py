@@ -15,6 +15,11 @@ years can be safely summed and discounted using a single real discount rate.
 from typing import Optional, Union
 
 from asf_lifetime_cost_model import config
+from asf_lifetime_cost_model.models.capital_cost import CapitalCostMixin
+from asf_lifetime_cost_model.models.lifetime_cost import LifetimeCostMixin
+from asf_lifetime_cost_model.models.maintenance_cost import MaintenanceCostMixin
+from asf_lifetime_cost_model.models.parity_solvers import ParitySolverMixin
+from asf_lifetime_cost_model.models.running_cost import RunningCostMixin
 from asf_lifetime_cost_model.models.trajectory import (
     EnergyPriceTrajectory,
     InstallationCostTrajectory,
@@ -25,13 +30,13 @@ FUEL_BY_SYSTEM_TYPE = config["fuel_by_system_type"]
 DEFAULT_DISCOUNT_RATE = config["default_discount_rate"]
 
 
-class HeatingSystem:
+class HeatingSystem(RunningCostMixin, CapitalCostMixin, MaintenanceCostMixin, LifetimeCostMixin, ParitySolverMixin):
     """Represents a heating system installed in a household.
 
     Currently supported system types are air-to-water heat pump or gas boiler.
 
     Heating systems are characterised by technology type, fuel, efficiency,
-    upfront cost, maintenance cost, and lifespan.
+    capital cost, maintenance cost, and lifespan.
 
     Fuel is derived automatically from system_type (heat pumps run on
     electricity, boilers run on gas - defined in config["fuel_by_system_type"]).
@@ -50,11 +55,24 @@ class HeatingSystem:
     different base years, would silently give a wrong answer.
 
     Optionally financed via a loan (interest_rate + loan_term): if provided,
-    the loan is assumed to cover 100% of upfront_cost as no deposit is
+    the loan is assumed to cover 100% of capital_cost as no deposit is
     modeled. Repayments begin one year after installation (interest accrues
     from day one, but nothing is due until one full period has elapsed),
     spread evenly over loan_term years using the standard annuity formula.
+
+    Cost calculations are split across sibling mixins, each in its own module, and
+    combined here via multiple inheritance so they remain plain instance methods:
+    - RunningCostMixin (running_cost.py): fuel/energy running costs.
+    - CapitalCostMixin (capital_cost.py): capital cost and loan repayments.
+    - MaintenanceCostMixin (maintenance_cost.py): maintenance costs.
+    - LifetimeCostMixin (lifetime_cost.py): totals combining the three mixins above.
+    - ParitySolverMixin (parity_solvers.py): solves for the subsidy or electricity
+      price needed to reach a target Equivalent Annual Cost.
+    This class itself owns construction, validation, and the shared discounting
+    functions (_discount_factor, _annuity_factor, ...) that every mixin relies on.
     """
+
+    # --- Construction & validation ---
 
     def __init__(
         self,
@@ -68,7 +86,7 @@ class HeatingSystem:
         maintenance_annual_frequency: float,  # visits per year, e.g. 1.0 = annual, 0.5 = every 2 years
         interest_rate: Optional[float] = None,  # annual rate, e.g. 0.05 for 5%. None = no loan (pay upfront)
         loan_term: Optional[int] = None,  # years to repay over, starting 1 year after installation. None = no loan
-        # NOTE: if financed, the loan is assumed to cover 100% of upfront_cost and no deposit is modeled.
+        # NOTE: if financed, the loan is assumed to cover 100% of capital_cost and no deposit is modeled.
     ) -> None:
         """Instantiate heating system, looking up installation cost and subsidy for installation_year."""
         if system_type not in FUEL_BY_SYSTEM_TYPE:
@@ -107,7 +125,7 @@ class HeatingSystem:
 
         self.installation_cost = installation_cost_trajectory.get_cost(year=installation_year)
         self.subsidy = subsidy_trajectory.get_subsidy(year=installation_year)
-        self.upfront_cost = self.installation_cost - self.subsidy
+        self.capital_cost = self.installation_cost - self.subsidy
 
         self.maintenance_cost_per_visit = maintenance_cost_per_visit
         self.maintenance_annual_frequency = maintenance_annual_frequency
@@ -164,6 +182,8 @@ class HeatingSystem:
                 f"installation_year={self.installation_year}, lifespan={self.lifespan})"
             )
 
+    # --- Discounting helpers ---
+
     @staticmethod
     def _discount_factor(year: int, discount_base_year: int, discount_rate: float) -> float:
         """Real discount factor: 1 / (1 + discount_rate) ** (year - discount_base_year)."""
@@ -183,463 +203,22 @@ class HeatingSystem:
             return 1 / n
         return discount_rate / ((1 + discount_rate) * (1 - (1 + discount_rate) ** -n))
 
-    # --- Running cost calculations ---
+    def _resolve_discount_base_year(self, discount_base_year: Optional[int]) -> int:
+        """Default discount_base_year to this system's installation_year when not given."""
+        return discount_base_year if discount_base_year is not None else self.installation_year
 
-    def calculate_energy_demand(self, heat_demand: float) -> float:
-        """Fuel input needed to meet a given heat demand, based on this system's fixed efficiency.
-
-        Heat demand in kWh/year.
-        """
-        return heat_demand / self.efficiency
-
-    def calculate_running_cost(
-        self,
-        year: int,
-        heat_demand: float,
-        energy_price_trajectory: EnergyPriceTrajectory,
-        standing_charge: float = 0.0,  # p/day, real terms. Flat for now; may become a trajectory later.
-    ) -> float:
-        """Running cost (undiscounted) for a single year = energy demand x fuel price that year.
-
-        Converted to £, plus standing_charge (p/day, converted to £/year: standing_charge / 100 * 365).
-
-        energy_price_trajectory prices are in p/kWh; this converts to £ so
-        the result can be summed with installation_cost/subsidy/maintenance,
-        which are all in £.
-
-        Raises if year is outside this system's operating_years.
-        Heat demand in kWh/year.
-        """
-        self._validate_year_in_operating_years(year=year)
-        self._validate_energy_price_trajectory(energy_price_trajectory=energy_price_trajectory)
-        energy_demand = self.calculate_energy_demand(heat_demand=heat_demand)
-        price_in_pounds = energy_price_trajectory.get_price(year=year) / 100  # p/kWh -> £/kWh
-        annual_variable_cost = energy_demand * price_in_pounds
-        annual_standing_charge_in_pounds = standing_charge / 100 * 365  # p/day -> £/year
-        return annual_variable_cost + annual_standing_charge_in_pounds
-
-    def calculate_lifetime_running_cost(
-        self,
-        heat_demand: float,
-        energy_price_trajectory: EnergyPriceTrajectory,
-        standing_charge: float = 0.0,  # p/day, real terms. Flat for now; may become a trajectory later.
-    ) -> float:
-        """Total (undiscounted) running cost (£) summed across every year of operation, in real terms.
-
-        Heat demand in kWh/year.
-        """
-        return sum(
-            self.calculate_running_cost(
-                year=year,
-                heat_demand=heat_demand,
-                energy_price_trajectory=energy_price_trajectory,
-                standing_charge=standing_charge,
-            )
-            for year in self.operating_years
-        )
-
-    def calculate_discounted_running_cost(
-        self,
-        year: int,
-        heat_demand: float,
-        energy_price_trajectory: EnergyPriceTrajectory,
-        standing_charge: float = 0.0,  # p/day, real terms. Flat for now; may become a trajectory later.
-        discount_rate: float = DEFAULT_DISCOUNT_RATE,
-        discount_base_year: Optional[int] = None,
-    ) -> float:
-        """Running cost for a single year, discounted back to discount_base_year.
-
-        Raises if year is outside this system's operating_years.
-        Heat demand in kWh/year.
-        """
-        self._validate_year_in_operating_years(year=year)
-        discount_base_year = discount_base_year if discount_base_year is not None else self.installation_year
-        running_cost = self.calculate_running_cost(
-            year=year,
-            heat_demand=heat_demand,
-            energy_price_trajectory=energy_price_trajectory,
-            standing_charge=standing_charge,
-        )
-        return running_cost * self._discount_factor(
-            year=year, discount_base_year=discount_base_year, discount_rate=discount_rate
-        )
-
-    def calculate_discounted_lifetime_running_cost(
-        self,
-        heat_demand: float,
-        energy_price_trajectory: EnergyPriceTrajectory,
-        standing_charge: float = 0.0,  # p/day, real terms. Flat for now; may become a trajectory later.
-        discount_rate: float = DEFAULT_DISCOUNT_RATE,
-        discount_base_year: Optional[int] = None,
-    ) -> float:
-        """Total running cost summed across every year of operation, each year discounted back to discount_base_year.
-
-        Heat demand in kWh/year.
-        """
-        discount_base_year = discount_base_year if discount_base_year is not None else self.installation_year
-        return sum(
-            self.calculate_discounted_running_cost(
-                year=year,
-                heat_demand=heat_demand,
-                energy_price_trajectory=energy_price_trajectory,
-                standing_charge=standing_charge,
-                discount_rate=discount_rate,
-                discount_base_year=discount_base_year,
-            )
-            for year in self.operating_years
-        )
-
-    def calculate_annualised_discounted_lifetime_running_cost(
-        self,
-        heat_demand: float,
-        energy_price_trajectory: EnergyPriceTrajectory,
-        standing_charge: float = 0.0,
-        discount_rate: float = DEFAULT_DISCOUNT_RATE,
-        discount_base_year: Optional[int] = None,
-    ) -> float:
-        """Equivalent Annual Cost of just the running cost component."""
-        npv = self.calculate_discounted_lifetime_running_cost(
-            heat_demand=heat_demand,
-            energy_price_trajectory=energy_price_trajectory,
-            standing_charge=standing_charge,
-            discount_rate=discount_rate,
-            discount_base_year=discount_base_year,
-        )
+    def _annualise(self, npv: float, discount_rate: float) -> float:
+        """Convert a present value into a level Equivalent Annual Cost over this system's lifespan."""
         return npv * self._annuity_factor(discount_rate=discount_rate, n=self.lifespan)
 
-    # --- Capital cost calculations ---
-
-    def calculate_annual_loan_repayment(self) -> float:
-        """Annual repayment for financing upfront_cost via a loan.
-
-        Uses annuity formula over loan_term years at interest_rate.
-        Raises if this system isn't financed.
-        """
-        if not self.is_financed:
-            raise ValueError("This HeatingSystem was not financed via a loan (interest_rate/loan_term were None)")
-
-        if self.interest_rate == 0:
-            return self.upfront_cost / self.loan_term
-
-        r = self.interest_rate
-        n = self.loan_term
-        return self.upfront_cost * r / (1 - (1 + r) ** -n)
-
-    def calculate_discounted_loan_repayment(
-        self,
-        year: int,
-        discount_rate: float = DEFAULT_DISCOUNT_RATE,
-        discount_base_year: Optional[int] = None,
-    ) -> float:
-        """Loan repayment for a single year, discounted back to discount_base_year.
-
-        Repayments run from installation_year + 1 through installation_year +
-        loan_term (i.e. the first repayment falls one year after installation.
-        Interest accrues from day one, but nothing is due until one full
-        period has elapsed.
-
-        Raises if this system isn't financed, or if year falls outside the
-        loan's actual repayment period.
-        """
-        if not self.is_financed:
-            raise ValueError("This HeatingSystem was not financed via a loan (interest_rate/loan_term were None)")
-
-        repayment_years = range(self.installation_year + 1, self.installation_year + self.loan_term + 1)
-        if year not in repayment_years:
-            raise ValueError(
-                f"year {year} is outside this loan's repayment period "
-                f"({repayment_years[0]}-{repayment_years[-1]}, loan_term={self.loan_term})"
-            )
-
-        discount_base_year = discount_base_year if discount_base_year is not None else self.installation_year
-        annual_repayment = self.calculate_annual_loan_repayment()
-        return annual_repayment * self._discount_factor(
-            year=year, discount_base_year=discount_base_year, discount_rate=discount_rate
-        )
-
-    def calculate_lifetime_loan_interest(self) -> float:
-        """Total interest paid over the life of the loan (total repayments minus principal borrowed).
-
-        Raises if this system isn't financed.
-        """
-        if not self.is_financed:
-            raise ValueError("This HeatingSystem was not financed via a loan (interest_rate/loan_term were None)")
-
-        total_repayments = self.calculate_annual_loan_repayment() * self.loan_term
-        return total_repayments - self.upfront_cost
-
-    def calculate_discounted_lifetime_loan_interest(
-        self,
-        discount_rate: float = DEFAULT_DISCOUNT_RATE,
-        discount_base_year: Optional[int] = None,
-    ) -> float:
-        """Total interest cost of the loan, in present-value terms, discounted back to discount_base_year.
-
-        Equals calculate_discounted_lifetime_capital_cost minus the upfront_cost
-        (principal) discounted for the installation_year alone — i.e. the extra
-        present-value cost of financing versus paying upfront_cost in cash.
-
-        Raises if this system isn't financed.
-        """
-        if not self.is_financed:
-            raise ValueError("This HeatingSystem was not financed via a loan (interest_rate/loan_term were None)")
-
-        discount_base_year = discount_base_year if discount_base_year is not None else self.installation_year
-
-        discounted_capital_cost = self.calculate_discounted_lifetime_capital_cost(
-            discount_rate=discount_rate, discount_base_year=discount_base_year
-        )
-        discounted_principal = self.upfront_cost * self._discount_factor(
-            year=self.installation_year, discount_base_year=discount_base_year, discount_rate=discount_rate
-        )
-        return discounted_capital_cost - discounted_principal
-
-    def calculate_lifetime_capital_cost(self) -> float:
-        """Total (undiscounted) capital cost over the system's lifespan.
-
-        Equals upfront_cost if unfinanced, or total loan repayments
-        (principal + interest) if financed.
-        """
-        if self.is_financed:
-            return self.calculate_annual_loan_repayment() * self.loan_term
-        return self.upfront_cost
-
-    def calculate_discounted_lifetime_capital_cost(
-        self,
-        discount_rate: float = DEFAULT_DISCOUNT_RATE,
-        discount_base_year: Optional[int] = None,
-    ) -> float:
-        """Capital cost over the system's lifespan, discounted back to discount_base_year.
-
-        If unfinanced: the single upfront_cost lump sum, discounted for the
-        installation_year alone. If financed: the sum of annual loan
-        repayments (via calculate_discounted_loan_repayment), each
-        discounted individually for the year it's paid.
-        """
-        discount_base_year = discount_base_year if discount_base_year is not None else self.installation_year
-
-        if self.is_financed:
-            repayment_years = range(self.installation_year + 1, self.installation_year + self.loan_term + 1)
-            return sum(
-                self.calculate_discounted_loan_repayment(
-                    year=year, discount_rate=discount_rate, discount_base_year=discount_base_year
-                )
-                for year in repayment_years
-            )
-        return self.upfront_cost * self._discount_factor(
-            year=self.installation_year, discount_base_year=discount_base_year, discount_rate=discount_rate
-        )
-
-    def calculate_annualised_discounted_lifetime_capital_cost(
-        self,
-        discount_rate: float = DEFAULT_DISCOUNT_RATE,
-        discount_base_year: Optional[int] = None,
-    ) -> float:
-        """Equivalent Annual Cost of just the capital cost component (principal + interest if financed)."""
-        npv = self.calculate_discounted_lifetime_capital_cost(
-            discount_rate=discount_rate, discount_base_year=discount_base_year
-        )
-        return npv * self._annuity_factor(discount_rate=discount_rate, n=self.lifespan)
-
-    def calculate_annualised_discounted_lifetime_loan_interest(
-        self,
-        discount_rate: float = DEFAULT_DISCOUNT_RATE,
-        discount_base_year: Optional[int] = None,
-    ) -> float:
-        """Equivalent Annual Cost of just the loan interest component. Raises if unfinanced."""
-        npv = self.calculate_discounted_lifetime_loan_interest(
-            discount_rate=discount_rate, discount_base_year=discount_base_year
-        )
-        return npv * self._annuity_factor(discount_rate=discount_rate, n=self.lifespan)
-
-    # --- Maintenance cost calculations ---
-
-    def calculate_annual_maintenance_cost(self) -> float:
-        """Expected annual maintenance cost, undiscounted, real terms.
-
-        E.g. cost_per_visit=100, frequency=0.5 -> £50/year average.
-        """
-        return self.maintenance_cost_per_visit * self.maintenance_annual_frequency
-
-    def calculate_maintenance_cost_for_year(self, year: int) -> float:
-        """Maintenance cost for a specific year, undiscounted, real terms.
-
-        Returns 0.0 for the installation year itself (new systems are
-        typically still under warranty, with no maintenance cost yet).
-        Raises if year is outside this system's operating_years.
-        """
-        self._validate_year_in_operating_years(year=year)
-        if year == self.installation_year:
-            return 0.0
-        return self.calculate_annual_maintenance_cost()
-
-    def calculate_lifetime_maintenance_cost(self) -> float:
-        """Total (undiscounted) maintenance cost summed across every year of operation, real terms.
-
-        Excludes the installation year (assumed no maintenance cost).
-        """
-        return self.calculate_annual_maintenance_cost() * (len(self.operating_years) - 1)
-
-    def calculate_discounted_maintenance_cost(
-        self,
-        year: int,
-        discount_rate: float = DEFAULT_DISCOUNT_RATE,
-        discount_base_year: Optional[int] = None,
-    ) -> float:
-        """Maintenance cost for a single year, discounted back to discount_base_year.
-
-        Returns zero for the installation year.
-        Raises if year is outside this system's operating_years.
-        """
-        self._validate_year_in_operating_years(year=year)
-        discount_base_year = discount_base_year if discount_base_year is not None else self.installation_year
-        maintenance_cost = self.calculate_maintenance_cost_for_year(year=year)
-        return maintenance_cost * self._discount_factor(
-            year=year, discount_base_year=discount_base_year, discount_rate=discount_rate
-        )
-
-    def calculate_discounted_lifetime_maintenance_cost(
-        self,
-        discount_rate: float = DEFAULT_DISCOUNT_RATE,
-        discount_base_year: Optional[int] = None,
-    ) -> float:
-        """Total maintenance cost summed across every year of operation, with present-value discounting.
-
-        Each year is discounted back to discount_base_year.
-        """
-        discount_base_year = discount_base_year if discount_base_year is not None else self.installation_year
-        return sum(
-            self.calculate_discounted_maintenance_cost(
-                year=year, discount_rate=discount_rate, discount_base_year=discount_base_year
-            )
-            for year in self.operating_years
-        )
-
-    def calculate_annualised_discounted_lifetime_maintenance_cost(
-        self,
-        discount_rate: float = DEFAULT_DISCOUNT_RATE,
-        discount_base_year: Optional[int] = None,
-    ) -> float:
-        """Equivalent Annual Cost of just the maintenance cost component."""
-        npv = self.calculate_discounted_lifetime_maintenance_cost(
-            discount_rate=discount_rate, discount_base_year=discount_base_year
-        )
-        return npv * self._annuity_factor(discount_rate=discount_rate, n=self.lifespan)
-
-    # --- Total lifetime cost calculations ---
-
-    def calculate_lifetime_cost(
-        self,
-        heat_demand: float,
-        energy_price_trajectory: EnergyPriceTrajectory,
-        standing_charge: float = 0.0,  # p/day, real terms. Flat for now; may become a trajectory later.
-    ) -> float:
-        """Total (undiscounted, real-terms) cost over the system's lifespan.
-
-        Includes running cost and maintenance cost summed across every year of operation,
-        plus either the upfront cost paid once (unfinanced) or annual loan repayments summed
-        over the loan term (financed). No time-value discounting applied — see
-        calculate_discounted_lifetime_cost for present-value terms.
-
-        Heat demand must be provided in kWh/year.
-        """
-        total_running_cost = self.calculate_lifetime_running_cost(
-            heat_demand=heat_demand, energy_price_trajectory=energy_price_trajectory, standing_charge=standing_charge
-        )
-        total_maintenance_cost = self.calculate_lifetime_maintenance_cost()
-        total_capital_cost = self.calculate_lifetime_capital_cost()
-
-        return total_capital_cost + total_running_cost + total_maintenance_cost
-
-    def calculate_discounted_lifetime_cost(
-        self,
-        heat_demand: float,
-        energy_price_trajectory: EnergyPriceTrajectory,
-        standing_charge: float = 0.0,  # p/day, real terms. Flat for now; may become a trajectory later.
-        discount_rate: float = DEFAULT_DISCOUNT_RATE,
-        discount_base_year: Optional[int] = None,
-    ) -> float:
-        """Lifetime cost expressed in present-value terms.
-
-        Built from calculate_discounted_lifetime_capital_cost, calculate_discounted_lifetime_maintenance_cost,
-        and calculate_discounted_lifetime_running_cost, so the sum of those
-        three individual methods always equals this total exactly.
-
-        Heat demand in kWh/year.
-        """
-        discount_base_year = discount_base_year if discount_base_year is not None else self.installation_year
-
-        discounted_capital_cost = self.calculate_discounted_lifetime_capital_cost(
-            discount_rate=discount_rate, discount_base_year=discount_base_year
-        )
-        discounted_maintenance_cost = self.calculate_discounted_lifetime_maintenance_cost(
-            discount_rate=discount_rate, discount_base_year=discount_base_year
-        )
-        discounted_running_cost = self.calculate_discounted_lifetime_running_cost(
-            heat_demand=heat_demand,
-            energy_price_trajectory=energy_price_trajectory,
-            standing_charge=standing_charge,
-            discount_rate=discount_rate,
-            discount_base_year=discount_base_year,
-        )
-
-        return discounted_capital_cost + discounted_maintenance_cost + discounted_running_cost
-
-    # --- Annualised lifetime cost calculations ---
-
-    def calculate_annualised_lifetime_cost(
-        self,
-        heat_demand: float,
-        energy_price_trajectory: EnergyPriceTrajectory,
-        standing_charge: float = 0.0,  # p/day, real terms. Flat for now; may become a trajectory later.
-    ) -> float:
-        """Annualised (undiscounted, real-terms) total cost over the system's lifespan.
-
-        Equals the lifetime cost (upfront/financing + running + maintenance) spread evenly across
-        every year of operation.
-
-        Heat demand must be provided in kWh/year.
-        """
-        total_lifetime_cost = self.calculate_lifetime_cost(
-            heat_demand=heat_demand, energy_price_trajectory=energy_price_trajectory, standing_charge=standing_charge
-        )
-        return total_lifetime_cost / len(self.operating_years)
-
-    def calculate_annualised_discounted_lifetime_cost(
-        self,
-        heat_demand: float,
-        energy_price_trajectory: EnergyPriceTrajectory,
-        standing_charge: float = 0.0,
-        discount_rate: float = DEFAULT_DISCOUNT_RATE,
-        discount_base_year: Optional[int] = None,
-    ) -> float:
-        """Equivalent Annual Cost (EAC): a level annual amount, over the system's lifespan.
-
-        Unlike calculate_annualised_lifetime_cost (which divides the
-        undiscounted total by the number of years), this accounts for the
-        fact that later years' costs are worth less today, using the
-        annuity-due formula (see _annuity_factor): EAC = NPV * r / ((1 + r)
-        * (1 - (1 + r) ** -n)). The annuity-due convention matches this
-        model's discounting, where the first operating year (t=0) is
-        undiscounted.
-
-        Heat demand in kWh/year.
-        """
-        npv = self.calculate_discounted_lifetime_cost(
-            heat_demand=heat_demand,
-            energy_price_trajectory=energy_price_trajectory,
-            standing_charge=standing_charge,
-            discount_rate=discount_rate,
-            discount_base_year=discount_base_year,
-        )
-        return npv * self._annuity_factor(discount_rate=discount_rate, n=self.lifespan)
+    # --- Representation ---
 
     def __repr__(self) -> str:
         """Return a string representation showing the system's key attributes and costs."""
         return (
             f"HeatingSystem(type={self.system_type!r}, fuel={self.fuel!r}, "
             f"installation_year={self.installation_year}, lifespan={self.lifespan}, "
-            f"efficiency={self.efficiency}, upfront_cost={self.upfront_cost}, "
+            f"efficiency={self.efficiency}, capital_cost={self.capital_cost}, "
             f"maintenance_cost_per_visit={self.maintenance_cost_per_visit}, "
             f"maintenance_annual_frequency={self.maintenance_annual_frequency}, "
             f"is_financed={self.is_financed}, base_year={self.base_year})"
