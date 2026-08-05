@@ -12,8 +12,7 @@ def _read_s3_csv_to_dataframe(
     bucket_name: str,
     s3_key: str,
 ) -> pd.DataFrame:
-    """
-    Get dataframe from .csv file stored in S3.
+    """Get dataframe from .csv file stored in S3.
 
     Args:
         bucket_name (str): S3 bucket name
@@ -28,15 +27,34 @@ def _read_s3_csv_to_dataframe(
     return pd.read_csv(content)
 
 
-def _read_excel_to_dataframe_or_dict(file_url: str) -> Optional[dict[str, pd.DataFrame]]:
+def _read_s3_parquet_to_dataframe(
+    bucket_name: str,
+    s3_key: str,
+) -> pd.DataFrame:
+    """Get dataframe from .parquet file stored in S3.
+
+    Args:
+        bucket_name (str): S3 bucket name
+        s3_key (str): Key of file in S3 bucket
+
+    Returns:
+        pd.DataFrame: Dataframe of content in .parquet file
     """
-    Get a dictionary of dataframes from content in an Excel workbook stored at specified URL.
+    s3 = boto3.client("s3")
+    obj = s3.get_object(Bucket=bucket_name, Key=s3_key)
+    content = io.BytesIO(obj["Body"].read())
+    return pd.read_parquet(content)
+
+
+def _read_excel_to_dataframe_or_dict(file_url: str) -> Optional[dict[str, pd.DataFrame]]:
+    """Get a dictionary of dataframes from content in an Excel workbook stored at specified URL.
 
     Args:
         file_url (str): URL of target file.
 
     Returns:
-        Optional[dict[str, pd.DataFrame]]: Dictionary of dataframes where each key-value pair is Excel sheet name-content.
+        Optional[dict[str, pd.DataFrame]]: Dictionary of dataframes where each key-value pair is
+            Excel sheet name-content.
     """
     try:
         response = requests.get(file_url)
