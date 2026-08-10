@@ -9,7 +9,7 @@ description = "Analytical model to estimate the lifetime cost of a heat pump and
 authors = [{ name = "Nesta" }]
 license = { text = "MIT" }
 readme = "README.md"
-requires-python = "==3.13.*"
+requires-python = ">=3.11"
 dependencies = [
     "altair>=6.2.2",
     "boto3>=1.39.15",
