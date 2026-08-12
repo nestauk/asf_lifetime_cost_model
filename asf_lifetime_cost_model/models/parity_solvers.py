@@ -36,6 +36,13 @@ class ParitySolverMixin:
         Only subsidy is solved for, for this system's own installation_year.
 
         Heat demand in kWh/year. Returns the required subsidy in £.
+
+        A negative result means this system is already cheaper than target_eac
+        with zero subsidy so no subsidy is needed. You should should treat
+        the result as £0 for display purposes rather than a literal negative
+        subsidy. A result exceeding installation_cost means subsidy alone
+        cannot close the gap (target_eac is unreachable via subsidy, even if
+        the full installation cost were covered).
         """
         discount_base_year = self._resolve_discount_base_year(discount_base_year)
 
@@ -97,6 +104,17 @@ class ParitySolverMixin:
 
         Returns a dict of {year: solved_price}, in the same units as
         energy_price_trajectory (p/kWh), covering every year in operating_years.
+
+        Two cases worth checking before interpreting the result:
+        - If this system's EAC at the current electricity price is already below
+            target_eac, the solved price represents how far electricity could
+            rise before parity is lost — not a price that must be reached, since
+            the system is already cheaper.
+        - A negative scale factor (and therefore negative solved prices) means
+            target_eac is unreachable: this system's capital, maintenance, and
+            standing charge costs alone already exceed target_eac, even before
+            any electricity cost is added, so no electricity price — including
+            zero — could bring the system down to the target.
         """
         discount_base_year = self._resolve_discount_base_year(discount_base_year)
 
