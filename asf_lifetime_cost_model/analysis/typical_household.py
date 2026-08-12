@@ -35,10 +35,10 @@ ASHP_EFFICIENCY = 3.0
 ASHP_LIFESPAN = 15
 ASHP_REAL_COST_REDUCTION = 0.025  # -2.5%/year real, from_year=2027
 ASHP_SUBSIDY_SCENARIO = "fast stepdown"
-ASHP_MAINTENANCE_COST_PER_VISIT = 100.0
+ASHP_MAINTENANCE_COST_PER_VISIT = 80.0
 ASHP_MAINTENANCE_FREQUENCY = 1.0
 
-ASHP_HEAT_DEMAND_UPLIFT = 0.08  # Adjusts ASHP heat demand relative to gas boiler heat demand
+ASHP_HEAT_DEMAND_UPLIFT = 0  # Adjusts ASHP heat demand relative to gas boiler heat demand
 # ASHPs run at lower flow temperatures for longer, which can increase overall heat demand
 # relative to a gas boiler in the same property. Set to 0 to assume no difference in demand
 # between the two systems. Source: https://www.sciencedirect.com/science/article/pii/S037877882100061X
@@ -422,6 +422,123 @@ eac_summary_df = eac_summary_df.round(0)
 eac_summary_df.index.name = "Installation year"
 
 # ---------------------------------------------------------------------------
+# 4d. Required subsidy for heat pump (and financed heat pump) to reach parity
+# with gas boiler (incl. gas standing charge)
+# ---------------------------------------------------------------------------
+required_subsidy_rows = []
+
+for installation_year in INSTALLATION_YEARS:
+    heat_pump, heat_pump_financed, heat_pump_no_subsidy, gas_boiler = build_systems_for_year(
+        installation_year=installation_year
+    )
+
+    gas_boiler_eac_incl_standing_charge = gas_boiler.calculate_annualised_discounted_lifetime_cost(
+        heat_demand=boiler_heat_demand,
+        energy_price_trajectory=gas_prices,
+        standing_charge=gas_standing_charge,
+        discount_rate=DISCOUNT_RATE,
+    )
+
+    required_subsidy_heat_pump = heat_pump.solve_subsidy_for_parity(
+        heat_demand=ashp_heat_demand,
+        energy_price_trajectory=ashp_electricity_prices,
+        target_eac=gas_boiler_eac_incl_standing_charge,
+        discount_rate=DISCOUNT_RATE,
+    )
+    required_subsidy_heat_pump_financed = heat_pump_financed.solve_subsidy_for_parity(
+        heat_demand=ashp_heat_demand,
+        energy_price_trajectory=ashp_electricity_prices,
+        target_eac=gas_boiler_eac_incl_standing_charge,
+        discount_rate=DISCOUNT_RATE,
+    )
+
+    required_subsidy_rows.append(
+        {
+            "installation_year": installation_year,
+            "system": "Heat pump",
+            "gas_boiler_eac_incl_standing_charge": gas_boiler_eac_incl_standing_charge,
+            "required_subsidy": required_subsidy_heat_pump,
+        }
+    )
+    required_subsidy_rows.append(
+        {
+            "installation_year": installation_year,
+            "system": "Heat pump (financed)",
+            "gas_boiler_eac_incl_standing_charge": gas_boiler_eac_incl_standing_charge,
+            "required_subsidy": required_subsidy_heat_pump_financed,
+        }
+    )
+
+required_subsidy_df = pd.DataFrame(required_subsidy_rows)
+# Pivot: rows = installation year, columns = system, values = required subsidy
+required_subsidy_pivot = required_subsidy_df.pivot(
+    index="installation_year", columns="system", values="required_subsidy"
+)
+
+# ---------------------------------------------------------------------------
+# 4e. Required electricity price cap rate (and implied elec/gas ratio) for
+# heat pump to reach parity with gas boiler, by installation year and
+# operating year. Solved in effective (ToU-discounted) terms, since that's
+# what actually determines running cost, then converted back to the
+# headline price cap rate (pre-ToU-discount) for reporting.
+# ---------------------------------------------------------------------------
+price_ratio_rows = []
+scale_factor_by_installation_year = {}
+
+for installation_year in INSTALLATION_YEARS:
+    heat_pump, heat_pump_financed, heat_pump_no_subsidy, gas_boiler = build_systems_for_year(
+        installation_year=installation_year
+    )
+
+    gas_boiler_eac = gas_boiler.calculate_annualised_discounted_lifetime_cost(
+        heat_demand=boiler_heat_demand,
+        energy_price_trajectory=gas_prices,
+        standing_charge=gas_standing_charge,
+        discount_rate=DISCOUNT_RATE,
+    )
+
+    # Solve using the ToU-discounted trajectory, since that's what actually
+    # determines the heat pump's running cost
+    required_effective_electricity_prices = heat_pump.solve_electricity_price_for_parity(
+        heat_demand=ashp_heat_demand,
+        energy_price_trajectory=ashp_electricity_prices,
+        target_eac=gas_boiler_eac,
+        discount_rate=DISCOUNT_RATE,
+    )
+
+    # Convert solved effective prices back to the headline price cap rate
+    # (i.e. undo the ToU discount)
+    required_price_cap_rates = {
+        year: effective_price / (1 - ASHP_ELECTRICITY_TOU_TARIFF_DISCOUNT)
+        for year, effective_price in required_effective_electricity_prices.items()
+    }
+
+    scale_factor_by_installation_year[installation_year] = required_price_cap_rates[
+        installation_year
+    ] / electricity_prices.get_price(year=installation_year)
+
+    for operating_year, required_price_cap_rate in required_price_cap_rates.items():
+        price_ratio_rows.append(
+            {
+                "installation_year": installation_year,
+                "operating_year": operating_year,
+                "required_price_cap_rate": required_price_cap_rate,
+                "gas_price": gas_prices.get_price(year=operating_year),
+                "price_ratio": required_price_cap_rate / gas_prices.get_price(year=operating_year),
+            }
+        )
+
+price_ratio_df = pd.DataFrame(price_ratio_rows)
+
+# Pivot: rows = operating year, columns = installation year, values = required price cap rate
+required_price_pivot = price_ratio_df.pivot(
+    index="operating_year", columns="installation_year", values="required_price_cap_rate"
+)
+
+scale_factor_row = pd.Series(scale_factor_by_installation_year, name="Scale factor (k)")
+required_price_pivot = pd.concat([required_price_pivot, scale_factor_row.to_frame().T])
+
+# ---------------------------------------------------------------------------
 # 5. Save out to Excel in separate tabs
 # ---------------------------------------------------------------------------
 
@@ -433,18 +550,49 @@ with pd.ExcelWriter(OUTPUT_PATH, engine="openpyxl") as writer:
     eac_summary_df.to_excel(writer, sheet_name="Summary", startrow=2)
     comparison_df.to_excel(writer, sheet_name="Comparison", index=False)
     annual_breakdown_df.to_excel(writer, sheet_name="Annual breakdown", index=False)
+    required_subsidy_pivot.to_excel(writer, sheet_name="Required subsidy", startrow=2)
+    required_price_pivot.to_excel(writer, sheet_name="Required elec price", startrow=2)
+    price_ratio_df.to_excel(writer, sheet_name="Required elec price (long)", index=False)
 
     summary_sheet = writer.sheets["Summary"]
-
-    # --- Title and description above the table ---
     summary_sheet["A1"] = "Equivalent Annual Cost (EAC) by installation year and heating system"
     summary_sheet["A2"] = (
         f"Present value, {BASE_YEAR} real £, discounted at {DISCOUNT_RATE:.1%}. "
         "Each row compares systems installed in the same year (see 'Comparison' tab for full breakdown)."
     )
 
-print(f"Results saved to {OUTPUT_PATH}")
+    required_subsidy_sheet = writer.sheets["Required subsidy"]
+    required_subsidy_sheet["A1"] = "Required subsidy for lifetime cost parity with gas boiler (incl. standing charge)"
+    required_subsidy_sheet["A2"] = (
+        f"Present value, {BASE_YEAR} real £, discounted at {DISCOUNT_RATE:.1%}. "
+        "Subsidy solved for exactly (algebraic solution, not an iterative search). "
+        "Negative values indicate the heat pump is already cheaper than the gas boiler without any subsidy."
+    )
 
+    required_price_sheet = writer.sheets["Required elec price"]
+    required_price_sheet["A1"] = (
+        "Required electricity price cap rate (p/kWh) for lifetime cost parity with gas boiler (incl. standing charge)"
+    )
+    required_price_sheet["A2"] = (
+        f"Present value, {BASE_YEAR} real £, discounted at {DISCOUNT_RATE:.1%}. "
+        "Rows are operating years, columns are installation years. Blank cells mean that installation "
+        "year's heat pump wasn't operating in that year. Values are the headline price cap rate "
+        f"(before the {ASHP_ELECTRICITY_TOU_TARIFF_DISCOUNT:.0%} ToU tariff discount is applied). "
+        "'Scale factor (k)' is the uniform multiplier applied to the original electricity price "
+        "trajectory's shape to reach parity; a value below 1 means prices would need to be lower "
+        "than currently assumed."
+    )
+
+    price_ratio_sheet = writer.sheets["Required elec price (long)"]
+    price_ratio_sheet.insert_rows(1, amount=2)
+    price_ratio_sheet["A1"] = "Required electricity price cap rate and implied elec/gas ratio, tidy format"
+    price_ratio_sheet["A2"] = (
+        f"Present value, {BASE_YEAR} real £, discounted at {DISCOUNT_RATE:.1%}. "
+        "One row per (installation_year, operating_year) combination (same data as "
+        "'Required elec price', in long format for filtering/pivoting elsewhere.)"
+    )
+
+print(f"Results saved to {OUTPUT_PATH}")
 # ---------------------------------------------------------------------------
 # 6. Plot: EAC by installation year, for each heating system
 # ---------------------------------------------------------------------------
