@@ -35,6 +35,11 @@ loggers:
     handlers: [console, info_file_handler, error_file_handler]
     propagate: no
 
+  "botocore.credentials":
+    level: WARNING
+    handlers: [console]
+    propagate: no
+
 root:
   level: INFO
   handlers: [console]
