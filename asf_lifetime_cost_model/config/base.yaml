@@ -3,7 +3,7 @@
 # Year ranges to model
 # Operating corresponds to years that heating systems could be operating (for which energy prices are modelled)
 operating_start_year: 2026
-operating_end_year: 2050
+operating_end_year: 2056 # for 20 year lifespan heating systems from 2026
 # Install corresponds to years that heating systems could be installed
 install_start_year: 2026
 install_end_year: 2035
