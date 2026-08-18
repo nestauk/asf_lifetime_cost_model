@@ -38,86 +38,72 @@ mcs_df = pd.read_csv(
 mcs_df["Commissioning Date"] = pd.to_datetime(mcs_df["Commissioning Date"], format="%d/%m/%Y", errors="coerce")
 
 # %%
-# Filter for installs in current year and types of interest
-current_year = datetime.datetime.now().year
-mcs_2026_df = mcs_df[
+# Filter for installs in timeline and types of interest
+# FY2025/26
+df = mcs_df[
     (mcs_df["Technology Type"] == "Air Source Heat Pump")
     & (mcs_df["Installation Type"] == "Domestic")
     & (mcs_df["Project Type"] == "Retrofit")
-    & (mcs_df["Commissioning Date"].dt.year == current_year)
+    & (
+        ((mcs_df["Commissioning Date"].dt.year == 2025) & (mcs_df["Commissioning Date"].dt.quarter.isin([2, 3, 4])))
+        | ((mcs_df["Commissioning Date"].dt.year == 2026) & (mcs_df["Commissioning Date"].dt.quarter == 1))
+    )
     & (mcs_df["Renewable System Design"] == "Space heat and DHW")
 ].copy()
 
 # %%
 # Drop duplicate rows
-mcs_2026_df = mcs_2026_df.drop_duplicates()
+df = df.drop_duplicates()
 
 # %%
 # Add a new column counting number of heat pump/units included in the installation
-dupe_mask = mcs_2026_df["InstallationID"].duplicated(keep=False)
-multi_unit_sales = mcs_2026_df[dupe_mask]
-unit_counts = mcs_2026_df.groupby("InstallationID").size().reset_index(name="n_units")
+dupe_mask = df["InstallationID"].duplicated(keep=False)
+multi_unit_sales = df[dupe_mask]
+unit_counts = df.groupby("InstallationID").size().reset_index(name="n_units")
 multi_unit_ids = unit_counts[unit_counts["n_units"] > 1]
-mcs_2026_df["n_units"] = mcs_2026_df.groupby("InstallationID")["InstallationID"].transform("size")
+df["n_units"] = df.groupby("InstallationID")["InstallationID"].transform("size")
 
-# mcs_2026_df.loc[mcs_2026_df["n_units"] > 1]
+# df.loc[df["n_units"] > 1]
 
 # %%
 # Note: installations for very high heat demand/generation need multiple units
-mcs_2026_df.loc[mcs_2026_df["n_units"] > 1, "Total Installed Capacity"].agg(["min", "median", "max"])
+df.loc[df["n_units"] > 1, "Total Installed Capacity"].agg(["min", "median", "max"])
 
 # %%
 # Add a total heat demand column
-mcs_2026_df["annual_total_heating_demand"] = (
-    mcs_2026_df["Annual Space Heating Demand"] + mcs_2026_df["Annual Water Heating Demand"]
-)
+df["annual_total_heating_demand"] = df["Annual Space Heating Demand"] + df["Annual Water Heating Demand"]
+
+# %%
+# Note: installations for very high heat demand/generation need multiple units
+df.loc[df["n_units"] > 1, "annual_total_heating_demand"].agg(["min", "median", "max"])
+
+# %%
+# Clean outliers
+df = df[df["annual_total_heating_demand"] <= 100_000]
 
 # %% [markdown]
 # Overall statistics
 
 # %%
 # Number of installations (unique IDs)
-print(f"Number of domestic, retrofit ASHP installations in 2026: {mcs_2026_df['InstallationID'].nunique():,.0f}")
+print(f"Number of domestic, retrofit ASHP installations in FY 2025/26: {df['InstallationID'].nunique():,.0f}")
 
 # %%
-median_capacity = mcs_2026_df.drop_duplicates(subset="InstallationID")["Total Installed Capacity"].median()
-print(f"Median installed capacity of domestic, retrofit ASHP installations in 2026: {median_capacity:,.0f} kW")
+median_capacity = df.drop_duplicates(subset="InstallationID")["Total Installed Capacity"].median()
+print(f"Median installed capacity of domestic, retrofit ASHP installations in 2025/26: {median_capacity:,.0f} kW")
 
 # %%
-median_cost = mcs_2026_df.drop_duplicates(subset="InstallationID")["Overall Cost"].median()
-print(f"Median cost of domestic, retrofit ASHP installations in 2026: £{median_cost:,.0f}")
+median_cost = df.drop_duplicates(subset="InstallationID")["Overall Cost"].median()
+print(f"Median cost of domestic, retrofit ASHP installations in 2025/26: £{median_cost:,.0f}")
 
 # %%
-median_heat_demand = mcs_2026_df.drop_duplicates(subset="InstallationID")["annual_total_heating_demand"].median()
+median_heat_demand = df.drop_duplicates(subset="InstallationID")["annual_total_heating_demand"].median()
 print(
-    f"Median annual heating demand of domestic, retrofit ASHP installations in 2026: {median_heat_demand:,.0f} kWh/yr"
+    f"Median annual heating demand of domestic, retrofit ASHP installations in 2025/26: {median_heat_demand:,.0f} kWh/yr"
 )
 
 # %% [markdown]
 # ---
-
-# %%
-mcs_2026_df[["Overall Cost", "Total Installed Capacity"]].corr()
-
-# %%
-fig, ax = plt.subplots(figsize=(10, 6))
-
-sns.kdeplot(
-    data=mcs_2026_df, x="annual_total_heating_demand", hue="capacity_band", common_norm=False, fill=False, ax=ax
-)
-
-# Add a vertical line for each band's median
-palette = sns.color_palette(n_colors=mcs_2026_df["capacity_band"].nunique())
-for color, (band, group) in zip(palette, mcs_2026_df.groupby("capacity_band")):
-    median_val = group["annual_total_heating_demand"].median()
-    ax.axvline(median_val, color=color, linestyle="--", linewidth=1, alpha=0.7)
-
-ax.set_xlabel("Heat demand (kWh/yr)")
-ax.set_ylabel("Density")
-ax.set_title("Heat demand distribution by capacity band (dashed = median)")
-
-plt.tight_layout()
-plt.show()
 
 # %% [markdown]
 # Exploratory: Grouping into capacity bands
@@ -138,18 +124,25 @@ labels = [
     "Greater than 20kW",
 ]
 
-mcs_2026_df["capacity_band"] = pd.cut(mcs_2026_df["Total Installed Capacity"], bins=bins, labels=labels, right=False)
+df["capacity_band"] = pd.cut(df["Total Installed Capacity"], bins=bins, labels=labels, right=False)
 
-pct_breakdown = mcs_2026_df["capacity_band"].value_counts(normalize=True).reindex(labels) * 100
+pct_breakdown = df["capacity_band"].value_counts(normalize=True).reindex(labels) * 100
 print(pct_breakdown.round(1))
 
 # %%
+capacity_check = df.groupby("InstallationID")["capacity_band"].nunique()
+print(capacity_check[capacity_check > 1])  # should be empty if capacity_band is truly install level
+
+# %%
+capacity_band_counts = df.drop_duplicates(subset="InstallationID")["capacity_band"].value_counts().sort_index()
+
+pct_breakdown = (capacity_band_counts / capacity_band_counts.sum()) * 100
 fig, ax = plt.subplots(figsize=(9, 5))
 bars = ax.bar(pct_breakdown.index, pct_breakdown.values, color="#4C72B0", edgecolor="white")
 
 ax.set_ylabel("% of installations")
 ax.set_xlabel("Capacity band (kW)")
-ax.set_title("Distribution of capacity of ASHPs installed (2026)")
+ax.set_title("Distribution of capacity of ASHPs installed (FY 2025/26)")
 plt.xticks(rotation=40, ha="right")
 
 # % labels on top of each bar
@@ -169,16 +162,42 @@ plt.tight_layout()
 plt.show()
 
 # %% [markdown]
-# Most common (mode) capacity band for installations in 2026 so far is 6-8 kW
+# Most common (mode) capacity band for installations in FY 2025/26 is 8-10 kW
+
+# %%
+df[["Overall Cost", "Total Installed Capacity"]].corr()
+
+# %%
+df["annual_total_heating_demand"].describe()
+
+# %%
+plot_df = df.drop_duplicates(subset="InstallationID")
+
+fig, ax = plt.subplots(figsize=(10, 6))
+
+sns.kdeplot(data=plot_df, x="annual_total_heating_demand", hue="capacity_band", common_norm=False, fill=False, ax=ax)
+
+# Add a vertical line for each band's median
+palette = sns.color_palette(n_colors=plot_df["capacity_band"].nunique())
+for color, (band, group) in zip(palette, plot_df.groupby("capacity_band")):
+    median_val = group["annual_total_heating_demand"].median()
+    ax.axvline(median_val, color=color, linestyle="--", linewidth=1, alpha=0.7)
+
+ax.set_xlabel("Heat demand (kWh/yr)")
+ax.set_ylabel("Density")
+ax.set_title("Heat demand distribution by capacity band (dashed = median)")
+
+plt.tight_layout()
+plt.show()
 
 # %% [markdown]
 # ---
 
 # %% [markdown]
-# 6 to 8 kW (most common capacity band)
+# 8 to 10 kW (most common capacity band)
 
 # %%
-band_subset = mcs_2026_df[mcs_2026_df["capacity_band"] == "6kW to 8kW"]
+band_subset = df[df["capacity_band"] == "8kW to 10kW"]
 
 # %%
 # remove outliers
@@ -195,8 +214,8 @@ fig, ax = plt.subplots(figsize=(6, 6))
 ax.boxplot(band_subset["Overall Cost"].dropna(), vert=True)
 
 ax.set_ylabel("Installed cost (£)")
-ax.set_title("Cost distribution for 6kW to 8kW band (n={})".format(len(band_subset)))
-ax.set_xticklabels(["6kW to 8kW"])
+ax.set_title("Cost distribution for 8kW to 10kW band (n={})".format(len(band_subset)))
+ax.set_xticklabels(["8kW to 10kW"])
 
 # IQR bounds
 ax.axhline(lower, color="firebrick", linestyle="--", linewidth=1, label=f"Lower bound (£{lower:,.0f})")
@@ -208,7 +227,7 @@ plt.tight_layout()
 plt.show()
 
 # %%
-print("\n--- 6kW to 8kW ---")
+print("\n--- 8kW to 10kW (FY 2025/26) ---")
 print(f"n = {len(band_clean)}")
 
 # Numerical fields
