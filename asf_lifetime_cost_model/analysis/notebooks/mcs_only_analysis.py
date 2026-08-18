@@ -80,6 +80,10 @@ mcs_2026_df["annual_total_heating_demand"] = (
 print(f"Number of domestic, retrofit ASHP installations in 2026: {mcs_2026_df['InstallationID'].nunique():,.0f}")
 
 # %%
+median_capacity = mcs_2026_df.drop_duplicates(subset="InstallationID")["Total Installed Capacity"].median()
+print(f"Median installed capacity of domestic, retrofit ASHP installations in 2026: {median_capacity:,.0f} kW")
+
+# %%
 median_cost = mcs_2026_df.drop_duplicates(subset="InstallationID")["Overall Cost"].median()
 print(f"Median cost of domestic, retrofit ASHP installations in 2026: £{median_cost:,.0f}")
 
@@ -89,12 +93,31 @@ print(
     f"Median annual heating demand of domestic, retrofit ASHP installations in 2026: {median_heat_demand:,.0f} kWh/yr"
 )
 
-# %%
-median_capacity = mcs_2026_df.drop_duplicates(subset="InstallationID")["Total Installed Capacity"].median()
-print(f"Median installed capacity of domestic, retrofit ASHP installations in 2026: {median_capacity:,.0f} kW")
-
 # %% [markdown]
 # ---
+
+# %%
+mcs_2026_df[["Overall Cost", "Total Installed Capacity"]].corr()
+
+# %%
+fig, ax = plt.subplots(figsize=(10, 6))
+
+sns.kdeplot(
+    data=mcs_2026_df, x="annual_total_heating_demand", hue="capacity_band", common_norm=False, fill=False, ax=ax
+)
+
+# Add a vertical line for each band's median
+palette = sns.color_palette(n_colors=mcs_2026_df["capacity_band"].nunique())
+for color, (band, group) in zip(palette, mcs_2026_df.groupby("capacity_band")):
+    median_val = group["annual_total_heating_demand"].median()
+    ax.axvline(median_val, color=color, linestyle="--", linewidth=1, alpha=0.7)
+
+ax.set_xlabel("Heat demand (kWh/yr)")
+ax.set_ylabel("Density")
+ax.set_title("Heat demand distribution by capacity band (dashed = median)")
+
+plt.tight_layout()
+plt.show()
 
 # %% [markdown]
 # Exploratory: Grouping into capacity bands
@@ -147,32 +170,6 @@ plt.show()
 
 # %% [markdown]
 # Most common (mode) capacity band for installations in 2026 so far is 6-8 kW
-
-# %%
-mcs_2026_df[["Overall Cost", "Total Installed Capacity"]].corr()
-
-# %%
-fig, ax = plt.subplots(figsize=(10, 6))
-
-sns.kdeplot(
-    data=mcs_2026_df, x="annual_total_heating_demand", hue="capacity_band", common_norm=False, fill=False, ax=ax
-)
-
-# Add a vertical line for each band's median
-palette = sns.color_palette(n_colors=mcs_2026_df["capacity_band"].nunique())
-for color, (band, group) in zip(palette, mcs_2026_df.groupby("capacity_band")):
-    median_val = group["annual_total_heating_demand"].median()
-    ax.axvline(median_val, color=color, linestyle="--", linewidth=1, alpha=0.7)
-
-ax.set_xlabel("Heat demand (kWh/yr)")
-ax.set_ylabel("Density")
-ax.set_title("Heat demand distribution by capacity band (dashed = median)")
-
-plt.tight_layout()
-plt.show()
-
-# %%
-mcs_2026_df.columns
 
 # %% [markdown]
 # ---
