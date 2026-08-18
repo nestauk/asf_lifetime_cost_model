@@ -1,3 +1,20 @@
+# -*- coding: utf-8 -*-
+# ---
+# jupyter:
+#   jupytext:
+#     cell_metadata_filter: -all
+#     custom_cell_magics: kql
+#     text_representation:
+#       extension: .py
+#       format_name: percent
+#       format_version: '1.3'
+#       jupytext_version: 1.11.2
+#   kernelspec:
+#     display_name: asf_lifetime_cost_model (3.13.2)
+#     language: python
+#     name: python3
+# ---
+
 # %% [markdown]
 # ## Identifying average heat demand and install cost for a 'typical' household installing an ASHP
 
@@ -48,6 +65,12 @@ mcs_2026_df["n_units"] = mcs_2026_df.groupby("InstallationID")["InstallationID"]
 # %%
 # Note: installations for very high heat demand/generation need multiple units
 mcs_2026_df.loc[mcs_2026_df["n_units"] > 1, "Total Installed Capacity"].agg(["min", "median", "max"])
+
+# %%
+# Add a total heat demand column
+mcs_2026_df["annual_total_heating_demand"] = (
+    mcs_2026_df["Annual Space Heating Demand"] + mcs_2026_df["Annual Water Heating Demand"]
+)
 
 # %% [markdown]
 # Overall statistics
@@ -124,12 +147,6 @@ plt.show()
 
 # %% [markdown]
 # Most common (mode) capacity band for installations in 2026 so far is 6-8 kW
-
-# %%
-# Add a total heat demand column
-mcs_2026_df["annual_total_heating_demand"] = (
-    mcs_2026_df["Annual Space Heating Demand"] + mcs_2026_df["Annual Water Heating Demand"]
-)
 
 # %%
 mcs_2026_df[["Overall Cost", "Total Installed Capacity"]].corr()
