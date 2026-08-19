@@ -27,7 +27,7 @@ asf_lifetime_cost_model/
 outputs/             # Generated figures and reports
 ```
 
-## Setup
+## Setup for development
 
 ### Prerequisites
 
@@ -50,6 +50,20 @@ uv sync
 source .venv/bin/activate
 ```
 
+## Setup for use
+
+If you just want to use the package as-is (rather than develop it), you can install it directly from GitHub without cloning the repo:
+
+```bash
+pip install git+https://github.com/nestauk/asf_lifetime_cost_model.git
+```
+
+or, with `uv`:
+
+```bash
+uv add git+https://github.com/nestauk/asf_lifetime_cost_model.git
+```
+
 ## Usage
 
 The core model classes (`EnergyPriceTrajectory`, `InstallationCostTrajectory`,
@@ -67,6 +81,10 @@ how the model classes fit together, see
 (Open it as a Jupyter notebook). For an explanation of the full architecture, available
 cost calculation methods, and config-driven defaults, see
 [`asf_lifetime_cost_model/models/README.md`](asf_lifetime_cost_model/models/README.md).
+
+## Contributing
+
+This repo is maintained by the Nesta A Sustainable Future team. If you're outside the team and want to make changes, please fork the repo and open a pull request from your fork rather than pushing directly.
 
 ---
 
