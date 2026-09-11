@@ -14,6 +14,7 @@ dependencies = [
     "altair>=6.2.2",
     "boto3>=1.39.15",
     "fsspec>=2026.6.0",
+    "matplotlib>=3.11.1",
     "odfpy>=1.4.1",
     "openpyxl>=3.1.5",
     "pandas>=2.3.1",
@@ -22,6 +23,7 @@ dependencies = [
     "python-calamine>=0.4.0",
     "requests>=2.32.4",
     "s3fs>=0.4.2",
+    "seaborn>=0.13.2",
 ]
 
 [tool.setuptools.packages.find]
