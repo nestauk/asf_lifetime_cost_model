@@ -126,6 +126,10 @@ class HeatingSystem(RunningCostMixin, CapitalCostMixin, MaintenanceCostMixin, Li
         self.installation_cost = installation_cost_trajectory.get_cost(year=installation_year)
         self.subsidy = subsidy_trajectory.get_subsidy(year=installation_year)
         self.capital_cost = self.installation_cost - self.subsidy
+        # Capital cost has a floor of £0, a subsidy larger than installation_cost is
+        # treated as fully covering the cost (household pays nothing), not as a
+        # negative cost / net payment to the household
+        self.capital_cost = max(0.0, self.installation_cost - self.subsidy)
 
         self.maintenance_cost_per_visit = maintenance_cost_per_visit
         self.maintenance_annual_frequency = maintenance_annual_frequency
