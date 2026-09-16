@@ -17,6 +17,8 @@
 
 # %% [markdown]
 # ## Identifying average heat demand and install cost for a 'typical' household installing an ASHP
+#
+# Note: This was a notebook to generate interim estimates using input MCS data while waiting for the MCS-EPC dataset update. The authoritative notebook for processing typical heat demand install cost is "mcs_epc_analysis.py".
 
 # %%
 import datetime
@@ -34,6 +36,9 @@ mcs_df = pd.read_csv(
 )
 
 # %%
+print(mcs_df["commission_date"].min(), mcs_df["commission_date"].max())
+
+# %%
 # Change commission date format to datetime type
 mcs_df["Commissioning Date"] = pd.to_datetime(mcs_df["Commissioning Date"], format="%d/%m/%Y", errors="coerce")
 
@@ -45,8 +50,8 @@ df = mcs_df[
     & (mcs_df["Installation Type"] == "Domestic")
     & (mcs_df["Project Type"] == "Retrofit")
     & (
-        ((mcs_df["Commissioning Date"].dt.year == 2025) & (mcs_df["Commissioning Date"].dt.quarter.isin([2, 3, 4])))
-        | ((mcs_df["Commissioning Date"].dt.year == 2026) & (mcs_df["Commissioning Date"].dt.quarter == 1))
+        ((mcs_df["Commissioning Date"].dt.year == 2025) & (mcs_df["Commissioning Date"].dt.quarter.isin([3, 4])))
+        | ((mcs_df["Commissioning Date"].dt.year == 2026) & (mcs_df["Commissioning Date"].dt.quarter.isin([1, 2])))
     )
     & (mcs_df["Renewable System Design"] == "Space heat and DHW")
 ].copy()
