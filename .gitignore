@@ -132,3 +132,6 @@ node_modules/
 *.utf8.md
 *.knit.md
 .Renviron
+
+# .pkl files anywhere in the repo
+*.pkl
