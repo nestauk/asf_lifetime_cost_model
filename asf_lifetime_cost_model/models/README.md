@@ -222,4 +222,4 @@ A `HeatingSystem` can be either:
 
 ---
 
-**Last updated: Elysia Lucas (04/08/2026)**
+<small>Last updated: 04 August 2026 by Elysia Lucas</small>

@@ -28,6 +28,38 @@ from asf_lifetime_cost_model.models.heating_system import HeatingSystem
 
 from asf_lifetime_cost_model import config
 
+# %%
+BASE_YEAR = 2026
+INFLATION_RATE = config["default_inflation_rate"]
+DISCOUNT_RATE = config["default_discount_rate"]  # 0.035, HMT Green Book
+
+ASHP_EFFICIENCY = 3.0
+ASHP_LIFESPAN = 15
+ASHP_REAL_COST_REDUCTION = 0.025  # -2.5%/year real, from_year=2027
+ASHP_SUBSIDY_SCENARIO = "fast stepdown"
+ASHP_MAINTENANCE_COST_PER_VISIT = 80.0
+ASHP_MAINTENANCE_FREQUENCY = 1.0
+
+ASHP_HEAT_DEMAND_UPLIFT = 0
+
+ASHP_INTEREST_RATE = 0.05
+ASHP_LOAN_TERM = 10
+
+ASHP_ELECTRICITY_TOU_TARIFF_DISCOUNT = 0.15  # 15% saving on unit rate, assumed for ASHP owners on a ToU tariff
+
+BOILER_EFFICIENCY = 0.85
+BOILER_LIFESPAN = 15
+BOILER_INSTALLATION_COST_2026 = 3_000  # £, 2026 real, flat (0% real change)
+BOILER_MAINTENANCE_COST_PER_VISIT = 80.0
+BOILER_MAINTENANCE_FREQUENCY = 1.0
+
+INSTALLATION_YEARS = range(config["install_start_year"], config["install_end_year"] + 1)
+
+ASHP_SPACE_HEAT_DEMAND = 13_690  # kWh/year
+ASHP_DOMESTIC_HOT_WATER_HEAT_DEMAND = 3_150  # kWh/year
+ASHP_INSTALLATION_COST_2026 = 12_310  # £, 2026 real
+
+
 # %% [markdown]
 # ## EnergyPriceTrajectory
 
@@ -36,16 +68,27 @@ electricity_prices = EnergyPriceTrajectory(
     fuel="electricity",
     starting_price=data_getters.get_latest_price_cap_rate("electricity"),
     price_basis="real",
-    base_year=2026,
+    base_year=BASE_YEAR,
 )
-electricity_prices.set_trajectory(-0.02, from_year=2027)  # -2%/year, already in real terms
+# electricity_prices.set_trajectory(-0.02, from_year=2027)  # -2%/year, already in real terms
 # electricity_prices.set_trajectory({2030: 10.0})  # explicit override example
 
 electricity_prices
 
 # %%
+ashp_electricity_prices = EnergyPriceTrajectory(
+    "electricity",
+    starting_price=electricity_prices.get_price(year=BASE_YEAR),
+    price_basis="real",
+    base_year=BASE_YEAR,
+)
+ashp_electricity_prices.series = electricity_prices.prices.copy()
+ashp_electricity_prices.apply_percentage_discount(ASHP_ELECTRICITY_TOU_TARIFF_DISCOUNT)
+ashp_electricity_prices
+
+# %%
 gas_prices = EnergyPriceTrajectory(
-    fuel="gas", starting_price=data_getters.get_latest_price_cap_rate("gas"), price_basis="real", base_year=2026
+    fuel="gas", starting_price=data_getters.get_latest_price_cap_rate("gas"), price_basis="real", base_year=BASE_YEAR
 )
 gas_prices
 
@@ -55,9 +98,9 @@ gas_prices
 # %%
 boiler_installation_costs = InstallationCostTrajectory(
     "gas_boiler",
-    starting_cost=3_000,
+    starting_cost=BOILER_INSTALLATION_COST_2026,
     price_basis="real",  # 3,000 is already stated in 2026 real £
-    base_year=2026,
+    base_year=BASE_YEAR,
 )
 boiler_installation_costs
 # no set_trajectory call needed
@@ -65,13 +108,13 @@ boiler_installation_costs
 
 # %%
 ashp_installation_costs = InstallationCostTrajectory(
-    system_type="air_to_water_heat_pump", starting_cost=13_100, price_basis="real", base_year=2026
+    system_type="air_to_water_heat_pump",
+    starting_cost=ASHP_INSTALLATION_COST_2026,
+    price_basis="real",
+    base_year=BASE_YEAR,
 )
-ashp_installation_costs.set_trajectory(-0.025)
+ashp_installation_costs.set_trajectory(-ASHP_REAL_COST_REDUCTION)
 ashp_installation_costs
-
-# %%
-ashp_installation_costs.cost
 
 # %% [markdown]
 # ## SubsidyTrajectory
@@ -87,11 +130,8 @@ fast_stepdown_values = {
     int(year): value for year, value in fast_stepdown_row.items() if int(year) in ashp_subsidies.subsidy.index
 }
 ashp_subsidies.set_trajectory(fast_stepdown_values)
-ashp_subsidies.to_real(base_year=2026, inflation_rate=config["default_inflation_rate"])
+ashp_subsidies.to_real(base_year=BASE_YEAR, inflation_rate=INFLATION_RATE)
 ashp_subsidies
-
-# %%
-ashp_subsidies.subsidy
 
 # %% [markdown]
 # ## HeatingSystem
@@ -104,26 +144,24 @@ ashp_subsidies.subsidy
 heat_pump = HeatingSystem(
     system_type="air_to_water_heat_pump",
     installation_year=2026,
-    lifespan=15,
-    efficiency=3.0,
+    lifespan=ASHP_LIFESPAN,
+    efficiency=ASHP_EFFICIENCY,
     installation_cost_trajectory=ashp_installation_costs,
     subsidy_trajectory=ashp_subsidies,
-    maintenance_cost_per_visit=80.0,
-    maintenance_annual_frequency=1.0,  # annual maintenance
+    maintenance_cost_per_visit=ASHP_MAINTENANCE_COST_PER_VISIT,
+    maintenance_annual_frequency=ASHP_MAINTENANCE_FREQUENCY,  # annual maintenance
 )
 heat_pump
 
 # %%
 # Configure heat demand
-gas_tdcv = 9_500  # kWh
-heat_demand_uplift_with_heat_pump = 0.08
-heat_demand_with_heat_pump = (9_500 * 0.85) * (1 + heat_demand_uplift_with_heat_pump)
+heat_demand_with_heat_pump = ASHP_SPACE_HEAT_DEMAND + ASHP_DOMESTIC_HOT_WATER_HEAT_DEMAND
 
 
 # %%
 # discounted lifetime running cost for a chosen year
 heat_pump.calculate_discounted_running_cost(
-    year=2026, heat_demand=heat_demand_with_heat_pump, energy_price_trajectory=electricity_prices
+    year=2026, heat_demand=heat_demand_with_heat_pump, energy_price_trajectory=ashp_electricity_prices
 )
 
 # %%
@@ -134,11 +172,11 @@ heat_pump.calculate_discounted_running_cost(
 
 # %%
 # lifetime running cost
-heat_pump.calculate_lifetime_running_cost(heat_demand_with_heat_pump, electricity_prices)
+heat_pump.calculate_lifetime_running_cost(heat_demand_with_heat_pump, ashp_electricity_prices)
 
 # %%
 # discounted lifetime running cost
-heat_pump.calculate_discounted_lifetime_running_cost(heat_demand_with_heat_pump, electricity_prices)
+heat_pump.calculate_discounted_lifetime_running_cost(heat_demand_with_heat_pump, ashp_electricity_prices)
 
 # %%
 # capex (no financing)
@@ -162,19 +200,19 @@ heat_pump.calculate_discounted_lifetime_maintenance_cost()
 
 # %%
 # lifetime cost
-heat_pump.calculate_lifetime_cost(heat_demand_with_heat_pump, electricity_prices)
+heat_pump.calculate_lifetime_cost(heat_demand_with_heat_pump, ashp_electricity_prices)
 
 # %%
 # annualised lifetime cost
-heat_pump.calculate_annualised_lifetime_cost(heat_demand_with_heat_pump, electricity_prices)
+heat_pump.calculate_annualised_lifetime_cost(heat_demand_with_heat_pump, ashp_electricity_prices)
 
 # %%
 # discounted lifetime cost
-heat_pump.calculate_discounted_lifetime_cost(heat_demand_with_heat_pump, electricity_prices)
+heat_pump.calculate_discounted_lifetime_cost(heat_demand_with_heat_pump, ashp_electricity_prices)
 
 # %%
 # discounted annualised lifetime cost
-heat_pump.calculate_annualised_discounted_lifetime_cost(heat_demand_with_heat_pump, electricity_prices)
+heat_pump.calculate_annualised_discounted_lifetime_cost(heat_demand_with_heat_pump, ashp_electricity_prices)
 
 # %% [markdown]
 # **Heat pump with financing**
@@ -184,22 +222,16 @@ heat_pump.calculate_annualised_discounted_lifetime_cost(heat_demand_with_heat_pu
 heat_pump_financed = HeatingSystem(
     system_type="air_to_water_heat_pump",
     installation_year=2026,
-    lifespan=15,
-    efficiency=3.0,
+    lifespan=ASHP_LIFESPAN,
+    efficiency=ASHP_EFFICIENCY,
     installation_cost_trajectory=ashp_installation_costs,
     subsidy_trajectory=ashp_subsidies,
-    maintenance_cost_per_visit=80.0,
-    maintenance_annual_frequency=1.0,  # annual maintenance
-    interest_rate=0.05,
-    loan_term=15,
+    maintenance_cost_per_visit=ASHP_MAINTENANCE_COST_PER_VISIT,
+    maintenance_annual_frequency=ASHP_MAINTENANCE_FREQUENCY,  # annual maintenance
+    interest_rate=ASHP_INTEREST_RATE,
+    loan_term=ASHP_LOAN_TERM,
 )
 heat_pump_financed
-
-# %%
-# Configure heat demand
-gas_tdcv = 9_500  # kWh
-heat_demand_uplift_with_heat_pump = 0.08
-heat_demand_with_heat_pump = (9_500 * 0.85) * (1 + heat_demand_uplift_with_heat_pump)
 
 # %%
 # annual loan repayment
@@ -223,7 +255,7 @@ heat_pump_financed.calculate_lifetime_loan_interest()
 
 # %%
 assert (
-    heat_pump.upfront_cost
+    heat_pump.capital_cost
     == heat_pump_financed.calculate_lifetime_capital_cost() - heat_pump_financed.calculate_lifetime_loan_interest()
 )
 
@@ -237,7 +269,7 @@ heat_pump_financed.calculate_discounted_lifetime_loan_interest()
 
 # %%
 assert (
-    heat_pump.upfront_cost
+    heat_pump.capital_cost
     == heat_pump_financed.calculate_discounted_lifetime_capital_cost()
     - heat_pump_financed.calculate_discounted_lifetime_loan_interest()
 )
@@ -270,17 +302,16 @@ gas_boiler_subsidies = SubsidyTrajectory(
 gas_boiler = HeatingSystem(
     system_type="gas_boiler",
     installation_year=2026,
-    lifespan=15,
-    efficiency=0.85,
+    lifespan=BOILER_LIFESPAN,
+    efficiency=BOILER_EFFICIENCY,
     installation_cost_trajectory=boiler_installation_costs,
     subsidy_trajectory=gas_boiler_subsidies,
-    maintenance_cost_per_visit=80.0,
-    maintenance_annual_frequency=1.0,
+    maintenance_cost_per_visit=BOILER_MAINTENANCE_COST_PER_VISIT,
+    maintenance_annual_frequency=BOILER_MAINTENANCE_FREQUENCY,
 )
 
 # %%
-gas_tdcv = 9_500  # kWh
-heat_demand_with_boiler = 9_500 * 0.85
+heat_demand_with_boiler = heat_demand_with_heat_pump / (1 + ASHP_HEAT_DEMAND_UPLIFT)
 
 # %%
 gas_boiler.calculate_discounted_lifetime_capital_cost()
@@ -331,13 +362,13 @@ comparison_data = {
         ),
         "Discounted maintenance cost": heat_pump.calculate_discounted_lifetime_maintenance_cost(),
         "Discounted running cost": heat_pump.calculate_discounted_lifetime_running_cost(
-            heat_demand_with_heat_pump, electricity_prices
+            heat_demand_with_heat_pump, ashp_electricity_prices
         ),
         "Total discounted lifetime cost": heat_pump.calculate_discounted_lifetime_cost(
-            heat_demand_with_heat_pump, electricity_prices
+            heat_demand_with_heat_pump, ashp_electricity_prices
         ),
         "Annualised discounted lifetime cost (EAC)": heat_pump.calculate_annualised_discounted_lifetime_cost(
-            heat_demand_with_heat_pump, electricity_prices
+            heat_demand_with_heat_pump, ashp_electricity_prices
         ),
     },
     "Heat pump (financed)": {
@@ -353,13 +384,13 @@ comparison_data = {
         ),
         "Discounted maintenance cost": heat_pump_financed.calculate_discounted_lifetime_maintenance_cost(),
         "Discounted running cost": heat_pump_financed.calculate_discounted_lifetime_running_cost(
-            heat_demand_with_heat_pump, electricity_prices
+            heat_demand_with_heat_pump, ashp_electricity_prices
         ),
         "Total discounted lifetime cost": heat_pump_financed.calculate_discounted_lifetime_cost(
-            heat_demand_with_heat_pump, electricity_prices
+            heat_demand_with_heat_pump, ashp_electricity_prices
         ),
         "Annualised discounted lifetime cost (EAC)": heat_pump_financed.calculate_annualised_discounted_lifetime_cost(
-            heat_demand_with_heat_pump, electricity_prices
+            heat_demand_with_heat_pump, ashp_electricity_prices
         ),
     },
     "Gas boiler": {
@@ -429,3 +460,231 @@ for row in plain_number_rows:
 formatted_df.loc[currency_rows] = comparison_df.loc[currency_rows].map(lambda value: f"£{value:,.2f}")
 
 formatted_df
+
+# %% [markdown]
+# ### Cost parity methods
+
+# %% [markdown]
+# **Solving for subsidy**
+
+# %%
+# For one installation year
+
+gas_boiler_eac = gas_boiler.calculate_annualised_discounted_lifetime_cost(
+    heat_demand_with_boiler, gas_prices, gas_standing_charge
+)
+
+required_subsidy = heat_pump.solve_subsidy_for_parity(
+    heat_demand=heat_demand_with_heat_pump,
+    energy_price_trajectory=ashp_electricity_prices,
+    target_eac=gas_boiler_eac,
+)
+print(
+    f"Required subsidy for lifetime cost parity between ASHP vs gas boiler installed in {heat_pump.installation_year}: £{required_subsidy:,.2f}"
+)
+
+# %%
+# Check
+# Build a subsidy trajectory using the solved value, then a fresh HeatingSystem to verify against
+verification_subsidy = SubsidyTrajectory(
+    "air_to_water_heat_pump", starting_subsidy=required_subsidy, price_basis="real", base_year=2026
+)
+
+heat_pump_verified = HeatingSystem(
+    system_type="air_to_water_heat_pump",
+    installation_year=heat_pump.installation_year,
+    lifespan=heat_pump.lifespan,
+    efficiency=heat_pump.efficiency,
+    installation_cost_trajectory=ashp_installation_costs,
+    subsidy_trajectory=verification_subsidy,
+    maintenance_cost_per_visit=heat_pump.maintenance_cost_per_visit,
+    maintenance_annual_frequency=heat_pump.maintenance_annual_frequency,
+)
+
+verified_eac = heat_pump_verified.calculate_annualised_discounted_lifetime_cost(
+    heat_demand=heat_demand_with_heat_pump,
+    energy_price_trajectory=ashp_electricity_prices,
+)
+
+print(f"Gas boiler EAC (target):        £{gas_boiler_eac:,.2f}")
+print(f"Heat pump EAC, solved subsidy:   £{verified_eac:,.2f}")
+print(f"Match (within rounding):         {abs(verified_eac - gas_boiler_eac) < 0.01}")
+
+# %% [markdown]
+# **Solving for electricity price**
+
+# %%
+# For one installation year
+
+gas_boiler_eac = gas_boiler.calculate_annualised_discounted_lifetime_cost(
+    heat_demand_with_boiler, gas_prices, gas_standing_charge
+)
+
+required_ashp_electricity_prices = heat_pump.solve_electricity_price_for_parity(
+    heat_demand=heat_demand_with_heat_pump,
+    energy_price_trajectory=ashp_electricity_prices,
+    target_eac=gas_boiler_eac,
+)
+
+required_price_cap_rates = {
+    year: effective_price / (1 - ASHP_ELECTRICITY_TOU_TARIFF_DISCOUNT)
+    for year, effective_price in required_ashp_electricity_prices.items()
+}
+
+required_price_cap_rates
+
+# %%
+# Check
+
+# Build a real trajectory using the solved per-year prices
+verification_trajectory = EnergyPriceTrajectory(
+    "electricity",
+    starting_price=required_price_cap_rates[heat_pump.installation_year],
+    price_basis="real",
+    base_year=2026,
+)
+for year, price in required_price_cap_rates.items():
+    verification_trajectory.prices.loc[year] = price * (1 - ASHP_ELECTRICITY_TOU_TARIFF_DISCOUNT)
+
+# Recompute EAC using that trajectory, entirely independently of the solver
+verified_eac = heat_pump.calculate_annualised_discounted_lifetime_cost(
+    heat_demand=heat_demand_with_heat_pump,
+    energy_price_trajectory=verification_trajectory,
+)
+
+print(f"Gas boiler EAC (target):                £{gas_boiler_eac:,.2f}")
+print(f"Heat pump EAC, solved price trajectory:  £{verified_eac:,.2f}")
+print(f"Match (within rounding):                 {abs(verified_eac - gas_boiler_eac) < 0.01}")
+
+# %%
+required_price_ratios = {
+    year: required_price_cap_rates[year] / gas_prices.get_price(year=year) for year in required_price_cap_rates
+}
+required_price_ratios
+
+# %% [markdown]
+# For all installation years
+
+# %%
+INSTALLATION_YEARS = range(config["install_start_year"], config["install_end_year"] + 1)
+
+required_subsidy_by_year = {}
+
+for installation_year in INSTALLATION_YEARS:
+    heat_pump = HeatingSystem(
+        system_type="air_to_water_heat_pump",
+        installation_year=installation_year,
+        lifespan=15,
+        efficiency=3.0,
+        installation_cost_trajectory=ashp_installation_costs,
+        subsidy_trajectory=ashp_subsidies,  # zero-subsidy baseline system
+        maintenance_cost_per_visit=80.0,
+        maintenance_annual_frequency=1.0,
+    )
+    gas_boiler = HeatingSystem(
+        system_type="gas_boiler",
+        installation_year=installation_year,
+        lifespan=15,
+        efficiency=0.85,
+        installation_cost_trajectory=boiler_installation_costs,
+        subsidy_trajectory=gas_boiler_subsidies,
+        maintenance_cost_per_visit=80.0,
+        maintenance_annual_frequency=1.0,
+    )
+
+    gas_boiler_eac = gas_boiler.calculate_annualised_discounted_lifetime_cost(
+        heat_demand=heat_demand_with_boiler, energy_price_trajectory=gas_prices, standing_charge=gas_standing_charge
+    )
+
+    required_subsidy_by_year[installation_year] = heat_pump.solve_subsidy_for_parity(
+        heat_demand=heat_demand_with_heat_pump,
+        energy_price_trajectory=ashp_electricity_prices,
+        target_eac=gas_boiler_eac,
+    )
+
+required_subsidy_by_year
+
+# %%
+required_subsidy_trajectory = SubsidyTrajectory(
+    "air_to_water_heat_pump",
+    starting_subsidy=required_subsidy_by_year[config["install_start_year"]],
+    price_basis="real",
+    base_year=2026,
+)
+required_subsidy_trajectory.set_trajectory(required_subsidy_by_year)
+
+required_subsidy_trajectory
+
+# %%
+INSTALLATION_YEARS = range(config["install_start_year"], config["install_end_year"] + 1)
+
+price_ratio_rows = []
+scale_factor_by_installation_year = {}
+
+for installation_year in INSTALLATION_YEARS:
+    heat_pump = HeatingSystem(
+        system_type="air_to_water_heat_pump",
+        installation_year=installation_year,
+        lifespan=15,
+        efficiency=3.0,
+        installation_cost_trajectory=ashp_installation_costs,
+        subsidy_trajectory=ashp_subsidies,
+        maintenance_cost_per_visit=80.0,
+        maintenance_annual_frequency=1.0,
+    )
+    gas_boiler = HeatingSystem(
+        system_type="gas_boiler",
+        installation_year=installation_year,
+        lifespan=15,
+        efficiency=0.85,
+        installation_cost_trajectory=boiler_installation_costs,
+        subsidy_trajectory=gas_boiler_subsidies,
+        maintenance_cost_per_visit=80.0,
+        maintenance_annual_frequency=1.0,
+    )
+
+    gas_boiler_eac = gas_boiler.calculate_annualised_discounted_lifetime_cost(
+        heat_demand=heat_demand_with_boiler, energy_price_trajectory=gas_prices, standing_charge=gas_standing_charge
+    )
+
+    required_ashp_electricity_prices = heat_pump.solve_electricity_price_for_parity(
+        heat_demand=heat_demand_with_heat_pump,
+        energy_price_trajectory=ashp_electricity_prices,
+        target_eac=gas_boiler_eac,
+    )
+
+    required_price_cap_rates = {
+        year: effective_price / (1 - ASHP_ELECTRICITY_TOU_TARIFF_DISCOUNT)
+        for year, effective_price in required_ashp_electricity_prices.items()
+    }
+
+    scale_factor_by_installation_year[installation_year] = required_price_cap_rates[
+        installation_year
+    ] / electricity_prices.get_price(year=installation_year)
+
+    for operating_year, required_price in required_price_cap_rates.items():
+        price_ratio_rows.append(
+            {
+                "installation_year": installation_year,
+                "operating_year": operating_year,
+                "required_electricity_price": required_price,
+                "gas_price": gas_prices.get_price(year=operating_year),
+                "price_ratio": required_price / gas_prices.get_price(year=operating_year),
+            }
+        )
+
+price_ratio_df = pd.DataFrame(price_ratio_rows)
+
+
+# %%
+# Pivot: rows = operating year, columns = installation year, values = required electricity price
+required_price_pivot = price_ratio_df.pivot(
+    index="operating_year", columns="installation_year", values="required_electricity_price"
+)
+
+scale_factor_row = pd.Series(scale_factor_by_installation_year, name="Scale factor (k)")
+required_price_pivot = pd.concat([required_price_pivot, scale_factor_row.to_frame().T])
+
+required_price_pivot
+
+# %%
