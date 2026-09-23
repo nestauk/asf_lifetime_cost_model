@@ -18,7 +18,9 @@
 # %% [markdown]
 # ## Identifying average heat demand and install cost for a 'typical' household installing an ASHP
 #
-# Note: This was a notebook to generate interim estimates using input MCS data while waiting for the MCS-EPC dataset update. The authoritative notebook for processing typical heat demand install cost is "mcs_epc_analysis.py".
+# Note: This was a notebook to generate interim estimates using input MCS data while waiting for the MCS-EPC dataset update.
+#
+# The authoritative notebook for processing typical heat demand and install cost is "typical_install_mcs_epc_analysis.py".
 
 # %%
 import datetime

@@ -1,8 +1,25 @@
+# -*- coding: utf-8 -*-
+# ---
+# jupyter:
+#   jupytext:
+#     cell_metadata_filter: -all
+#     custom_cell_magics: kql
+#     text_representation:
+#       extension: .py
+#       format_name: percent
+#       format_version: '1.3'
+#       jupytext_version: 1.11.2
+# ---
+
 # %% [markdown]
 # ## Identifying average heat demand and install cost for a 'typical' household installing an ASHP
 
+# %% [markdown]
+# Last updated: 23/09/2026
+
 # %%
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import seaborn as sns
 
@@ -49,6 +66,7 @@ mcs_epc_df = _read_s3_csv_to_dataframe(
 # %%
 # mcs_installations_epc_most_relevant_260911.csv has up to 2026 Q1 only
 print(mcs_epc_df["commission_date"].min(), mcs_epc_df["commission_date"].max())
+print(mcs_epc_df["INSPECTION_DATE"].min(), mcs_epc_df["INSPECTION_DATE"].max())
 
 # %%
 # mcs_epc_df.to_pickle("mcs_epc_df_temp.pkl")
@@ -146,9 +164,6 @@ plt.show()
 # Financial year 2025/26 only
 
 # %%
-#  Ensure commission_date is in datetime format
-mcs_epc_df["commission_date"] = pd.to_datetime(mcs_epc_df["commission_date"])
-
 df = mcs_epc_df[
     (mcs_epc_df["tech_type"] == "Air Source Heat Pump")
     & (mcs_epc_df["installation_type"] == "Domestic")
@@ -352,7 +367,122 @@ print(f"Median SCOP: {band_clean['scop'].median()}")
 # Ref check: BUS Statistics May 2026 2025/26 median installation cost for this capacity band = £12,658
 
 # %% [markdown]
-# **Using EPC property descriptors to describe the physical characteristics of this 'typical' household: Approach TBC**
+# **Using EPC property descriptors to describe the likely physical characteristics of this 'typical' household**
 
 # %% [markdown]
-#
+# Use median heat demand to identify neighbouring properties and examine probabilistic property profile
+
+# %%
+median_space_heat_demand = band_clean["heat_demand"].median()
+median_dhw_demand = band_clean["water_demand"].median()  # domestic hot water
+
+# Compute two-dimensional distance (space heat and DHW)
+space_sd = band_clean["heat_demand"].std()
+dhw_sd = band_clean["water_demand"].std()
+band_clean["distance"] = np.sqrt(
+    ((band_clean["heat_demand"] - median_space_heat_demand) / space_sd) ** 2
+    + ((band_clean["water_demand"] - median_dhw_demand) / dhw_sd) ** 2
+)
+
+# %% [markdown]
+# Approach 1. Simple KNN approach (K properties closest to median heat demand, weighted equally)
+
+# %%
+# Take the 50 nearest properties
+K = 50
+nearest = band_clean.nsmallest(K, "distance")
+
+# %% [markdown]
+# Approach 2. Kernel-weighted nearest neighbour approach
+
+# %%
+# https://pysal.org/libpysal/stable/generated/libpysal.weights.Kernel.html#libpysal.weights.Kernel
+
+
+# distance scale based on k-th nearest neighbour
+def compute_fixed_bandwidth(values: pd.Series, k: int = 2, eps: float = 1.0000001) -> float:
+    """Compute a kernel bandwidth given an array of data."""
+    x = values.sort_values(ascending=True).values
+    dists = np.abs(x[:, np.newaxis] - x[np.newaxis, :])
+    sorted_dists = np.sort(dists, axis=1)
+    d_ik = sorted_dists[:, k]
+    return np.max(d_ik) * eps
+
+
+# converts distance into weight
+def quartic_weights(z: pd.Series) -> pd.Series:
+    """Creates quartic weights for distance data."""
+    w = (15 / 16) * (1 - z**2) ** 2
+    w[w > 1] = 0
+    return w / w.sum() * z.shape[0]
+
+
+# converts distance into weight
+def gaussian_weights(z: pd.Series) -> pd.Series:
+    """Creates gaussian weights for distance data."""
+    w = (2 * np.pi) ** (-1 / 2) * np.exp(-(z**2) / 2)
+    return w / w.sum() * z.shape[0]
+
+
+# %%
+# Create a bandwidth normalised distance variable.
+bandwidth = compute_fixed_bandwidth(band_clean["distance"])
+
+band_clean["_dist_z"] = band_clean["distance"] / bandwidth
+
+# %%
+# Compute weights
+band_clean["quartic_weight"] = quartic_weights(band_clean["_dist_z"])
+band_clean["gaussian_weight"] = gaussian_weights(band_clean["_dist_z"])
+
+# %% [markdown]
+# Comparing all approaches
+
+
+# %%
+def create_comparison_table(
+    df: pd.DataFrame,
+    epc_feature: str,
+    nearest: pd.DataFrame,
+) -> pd.DataFrame:
+
+    # Quartic
+    quartic = df.groupby(epc_feature)["quartic_weight"].sum().to_frame("quartic_weight")
+    quartic["quartic_prop"] = quartic["quartic_weight"] / quartic["quartic_weight"].sum()
+
+    # Gaussian
+    gaussian = df.groupby(epc_feature)["gaussian_weight"].sum().to_frame("gaussian_weight")
+    gaussian["gaussian_prop"] = gaussian["gaussian_weight"] / gaussian["gaussian_weight"].sum()
+
+    # Simple KNN
+    simple_knn = nearest[epc_feature].value_counts(normalize=True).to_frame("simple_knn_prop")
+
+    # Combine
+    return quartic.join(gaussian).join(simple_knn)
+
+
+def create_comparison_plot(
+    comparison_df: pd.DataFrame,
+    epc_feature: str,
+):
+    comparison_df[["quartic_prop", "gaussian_prop", "simple_knn_prop"]].plot(kind="bar")
+    plt.ylabel("Proportion")
+    plt.xlabel(f"EPC: {epc_feature}")
+    plt.title("Property type distribution at median space and domestic hot water heat demand")
+    plt.xticks(rotation=45)
+    plt.legend(title="Method")
+    plt.tight_layout()
+    return plt.show()
+
+
+# %%
+property_type = create_comparison_table(band_clean, "PROPERTY_TYPE", nearest)
+create_comparison_plot(property_type, "PROPERTY_TYPE")
+
+# %%
+built_form = create_comparison_table(band_clean, "BUILT_FORM", nearest)
+create_comparison_plot(built_form, "BUILT_FORM")
+
+# %%
+rooms = create_comparison_table(band_clean, "NUMBER_HABITABLE_ROOMS", nearest)
+create_comparison_plot(rooms, "NUMBER_HABITABLE_ROOMS")

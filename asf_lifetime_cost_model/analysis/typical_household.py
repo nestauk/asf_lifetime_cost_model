@@ -58,13 +58,13 @@ INSTALLATION_YEARS = range(config["install_start_year"], config["install_end_yea
 
 # ---------------------------------------------------------------------------
 # Setting 'typical' household parameters
-# These are subject to change until we settle on our definition and approach
+# See analysis/typical_install_mcs_epc_analysis.py for how these are derived
 # ---------------------------------------------------------------------------
-ASHP_SPACE_HEAT_DEMAND = 13_690  # kWh/year
-ASHP_DOMESTIC_HOT_WATER_HEAT_DEMAND = 3_150  # kWh/year
-ASHP_INSTALLATION_COST_2026 = 12_310  # £, 2026 real
+ASHP_SPACE_HEAT_DEMAND = 13_745  # kWh/year
+ASHP_DOMESTIC_HOT_WATER_HEAT_DEMAND = 3_057  # kWh/year
+ASHP_INSTALLATION_COST_2026 = 12_524  # £, 2026 real
 
-PROPERTY_DESCRIPTION = "6-7 habitable rooms (3-4 bedrooms), (semi-)detached house"
+PROPERTY_DESCRIPTION = "5 habitable rooms (2-3 bedrooms) detached house"
 
 
 # ---------------------------------------------------------------------------
